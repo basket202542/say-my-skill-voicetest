@@ -1,0 +1,1052 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ห้องทดลองเสียง · Say My Skill!</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mali:wght@600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap">
+<style>
+/* Visual first (owner, 30 Oct): icons, bars and faces carry the meaning; words only where nothing else works.
+   One thumb-reach column: spell card on top, karaoke in the middle, the hold button low on screen. */
+:root {
+  --paper: #f6f1fb; --card: #ffffff; --ink: #3a3150; --ink-soft: #776d90; --line: #e5dcf1;
+  --peach: #ff9a7b; --peach-ink: #4a2318; --sky: #86c3e6; --sky-soft: #dcefFa;
+  --good: #4fae84; --warn: #d99a2b; --bad: #d9627c; --lit: #a46ad8; --face: #fff4ea;
+  --display: "Mali", "IBM Plex Sans Thai", "Noto Sans Thai", system-ui, sans-serif;
+  --body: "IBM Plex Sans Thai", "Noto Sans Thai", system-ui, sans-serif;
+  --r: 18px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #1c1827; --card: #282239; --ink: #f1ecfa; --ink-soft: #aca2c3; --line: #3b3352;
+  --peach: #ffa78b; --peach-ink: #3a1a10; --sky: #79b6dc; --sky-soft: #2b3a4d;
+  --good: #67c79b; --warn: #e8b25a; --bad: #ee8aa0; --lit: #c99af0; --face: #3a3150; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --paper: #1c1827; --card: #282239; --ink: #f1ecfa; --ink-soft: #aca2c3; --line: #3b3352;
+  --peach: #ffa78b; --peach-ink: #3a1a10; --sky: #79b6dc; --sky-soft: #2b3a4d;
+  --good: #67c79b; --warn: #e8b25a; --bad: #ee8aa0; --lit: #c99af0; --face: #3a3150; color-scheme: dark }
+* { box-sizing: border-box }
+[hidden] { display: none !important }
+html, body { margin: 0 }
+body { background: var(--paper); color: var(--ink); font: 15px/1.55 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: env(safe-area-inset-top, 0px) calc(24px + env(safe-area-inset-bottom, 0px));
+  font-variant-numeric: tabular-nums; -webkit-tap-highlight-color: transparent; overflow-x: hidden }
+main { max-width: 520px; margin: 0 auto; display: grid; gap: 12px; min-width: 0 }
+h1, .spell-name, .mult, .num { font-family: var(--display); margin: 0 }
+p { margin: 0 }
+.muted { color: var(--ink-soft) }
+.small { font-size: .82rem }
+.ic { width: 22px; height: 22px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
+.ic.s { width: 18px; height: 18px }
+.ic.l { width: 30px; height: 30px }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap }
+
+/* header: short name, ? help, three status icons */
+header { position: relative; padding-top: 16px; display: grid; gap: 8px }
+.top { display: flex; align-items: center; gap: 10px; padding-right: 40px; min-height: 34px }
+h1 { font-size: 1.3rem; line-height: 1.2; flex: 1; min-width: 0 }
+#status { display: flex; gap: 6px }
+.st { display: inline-flex; align-items: center; gap: 3px; height: 30px; min-width: 30px; padding: 0 6px; border-radius: 99px;
+  background: var(--card); border: 1.5px solid var(--line); color: var(--ink-soft); font: 600 .8rem/1 var(--display) }
+.st.ok { color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, var(--line)) }
+.st.bad { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 45%, var(--line)) }
+#help > summary { position: absolute; top: 18px; right: 0; width: 30px; height: 30px; border-radius: 50%; list-style: none;
+  display: grid; place-items: center; background: var(--card); border: 1.5px solid var(--line); color: var(--ink-soft);
+  font: 700 1rem/1 var(--display); cursor: pointer }
+#help > summary::-webkit-details-marker { display: none }
+#help[open] > summary { background: var(--ink); color: var(--paper); border-color: var(--ink) }
+.help { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; display: grid; gap: 8px; font-size: .86rem }
+.help div { display: flex; gap: 10px; align-items: center }
+.help .ic { color: var(--ink-soft) }
+
+nav { display: flex; gap: 4px; background: var(--card); border: 1px solid var(--line); border-radius: 99px; padding: 4px }
+nav a { flex: 1; display: flex; gap: 6px; align-items: center; justify-content: center; padding: 6px 0; border-radius: 99px;
+  color: var(--ink-soft); text-decoration: none; font-weight: 500 }
+nav a[aria-current="page"] { background: var(--ink); color: var(--paper) }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; display: grid; gap: 12px; min-width: 0 }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center }
+.between { justify-content: space-between }
+button { font: inherit; color: inherit; cursor: pointer }
+.btn { display: inline-flex; gap: 6px; align-items: center; justify-content: center; border: 1.5px solid var(--line); background: var(--card);
+  border-radius: 99px; padding: 8px 14px; font-weight: 500; min-height: 42px }
+.btn.primary { background: var(--peach); color: var(--peach-ink); border-color: transparent; font-weight: 600 }
+.btn.round { width: 42px; padding: 0 }
+.btn:disabled { opacity: .45; cursor: default }
+.btn:focus-visible, .hold:focus-visible, .pick:focus-visible, nav a:focus-visible, summary:focus-visible, .toggle:focus-within { outline: 3px solid var(--lit); outline-offset: 2px }
+.pick { border: 1.5px solid var(--line); background: var(--paper); border-radius: 14px; padding: 8px }
+.pick[aria-pressed="true"] { border-color: var(--peach); background: color-mix(in srgb, var(--peach) 16%, var(--card)) }
+
+/* setup */
+.places { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px }
+.places .pick { display: grid; justify-items: center; gap: 2px; padding: 10px 2px 6px; font-size: .8rem; font-weight: 500 }
+.places .pick .ic { width: 30px; height: 30px; color: var(--ink-soft) }
+.places .pick[aria-pressed="true"] .ic { color: var(--peach-ink) }
+:root[data-theme="dark"] .places .pick[aria-pressed="true"] .ic { color: var(--peach) }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .places .pick[aria-pressed="true"] .ic { color: var(--peach) } }
+.go { display: flex; gap: 10px; align-items: center }
+.go .btn.primary { flex: 1 }
+.toggle { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 42px; padding: 0 8px 0 10px; border-radius: 99px;
+  border: 1.5px solid var(--line); background: var(--paper); color: var(--ink-soft); cursor: pointer }
+.toggle input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer }
+.toggle .track { width: 30px; height: 18px; border-radius: 9px; background: var(--line); position: relative; transition: background .15s }
+.toggle .track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 12px; height: 12px; border-radius: 50%; background: var(--card); transition: transform .15s }
+.toggle input:checked ~ .track { background: var(--sky) }
+.toggle input:checked ~ .track::after { transform: translateX(12px) }
+.toggle input:checked ~ .ic { color: var(--ink) }
+.consent { display: flex; gap: 8px; align-items: center; font-size: .74rem; color: var(--ink-soft); line-height: 1.35 }
+.consent.bad { color: var(--bad) }
+
+/* spell card */
+.head { display: flex; gap: 10px; align-items: center }
+.progress { flex: 1; display: flex; gap: 3px; min-width: 0 }
+.progress i { flex: 1; height: 7px; border-radius: 4px; background: var(--line) }
+.progress i.gap { margin-left: 6px }
+.progress i.done { background: var(--sky) }
+.progress i.now { background: var(--peach) }
+#step-label { font: 600 .86rem/1 var(--display); color: var(--ink-soft) }
+#place-label { color: var(--ink-soft); display: inline-flex }
+.spell-top { display: flex; gap: 10px; align-items: flex-start; justify-content: space-between }
+.spell-head { display: grid; gap: 4px; min-width: 0 }
+.tags { display: flex; gap: 8px; align-items: center; color: var(--ink-soft) }
+.edot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--ink) 18%, transparent) }
+.tier { display: inline-flex; gap: 3px }
+.tier i { width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid var(--ink-soft) }
+.tier i.on { background: var(--ink-soft) }
+.spell-name { font-size: 1.65rem; line-height: 1.2; text-wrap: balance }
+.intent { flex: none; display: grid; justify-items: center; gap: 0; font-size: .72rem; font-weight: 600; color: var(--ink-soft) }
+.intent svg { width: 64px; height: 42px }
+.karaoke { display: grid; gap: 2px; font-size: 1.12rem; line-height: 1.5 }
+.karaoke .line { color: var(--ink-soft); transition: color .2s }
+.karaoke .line.lit { color: var(--lit); font-weight: 600 }
+.karaoke .line.name { font-family: var(--display); font-size: 1.45rem; color: var(--ink); margin-top: 4px }
+.karaoke.emph .line:not(.name) { font-size: .98rem }
+.karaoke.emph .line.name { font-size: 1.9rem; letter-spacing: .01em }
+.karaoke .line.name.lit { color: var(--lit) }
+.heard-live { min-height: 1.6em; display: flex; gap: 6px; align-items: flex-start; font-size: .9rem; color: var(--ink-soft); overflow-wrap: anywhere }
+.heard-live .ic { margin-top: 1px }
+
+/* hold button: a mic with level rings; colour = state */
+.hold-wrap { --lv: 0; position: relative; display: grid; place-items: center; height: 168px }
+.ring { position: absolute; width: 128px; height: 128px; border-radius: 50%; border: 3px solid var(--peach); pointer-events: none;
+  opacity: calc(var(--lv) * .7); transform: scale(calc(1 + var(--lv) * .22)); transition: transform 60ms linear, opacity 60ms linear }
+.ring.r2 { border-width: 2px; opacity: calc(var(--lv) * .4); transform: scale(calc(1 + var(--lv) * .4)) }
+.hold { position: relative; width: 120px; height: 120px; border-radius: 50%; border: 0; background: var(--peach); color: var(--peach-ink);
+  display: grid; place-items: center; box-shadow: 0 7px 0 color-mix(in srgb, var(--peach) 55%, var(--ink));
+  user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none; transition: transform .08s, box-shadow .08s, background .15s }
+.hold .ic { width: 50px; height: 50px; stroke-width: 2.2 }
+.hold.down { background: var(--lit); color: #fff; transform: translateY(5px); box-shadow: 0 2px 0 color-mix(in srgb, var(--lit) 55%, var(--ink)) }
+.hold-wrap.down .ring { border-color: var(--lit) }
+.hold.wait { background: var(--sky); color: var(--ink); box-shadow: 0 7px 0 color-mix(in srgb, var(--sky) 55%, var(--ink)) }
+.hold-wrap.wait .ring { border-color: var(--sky); animation: pulse 1.1s ease-in-out infinite }
+.hold-wrap.wait .ring.r2 { animation-delay: .35s }
+@keyframes pulse { 0% { opacity: .55; transform: scale(1) } 100% { opacity: 0; transform: scale(1.35) } }
+.hold:disabled { background: var(--line); color: var(--ink-soft); box-shadow: 0 7px 0 color-mix(in srgb, var(--line) 70%, var(--ink)) }
+#hold-hint { text-align: center; font-size: .8rem; color: var(--ink-soft); min-height: 1.2em; margin-top: -6px }
+@media (prefers-reduced-motion: reduce) { .hold, .ring, .karaoke .line { transition: none } .hold-wrap.wait .ring { animation: none } }
+
+/* result */
+.result { gap: 10px }
+.mult { font-size: 3rem; line-height: 1; color: var(--ink) }
+.mult.fail { font-size: 1.8rem; color: var(--bad) }
+.rrow { display: flex; gap: 8px; align-items: center; min-width: 0; font-size: .9rem }
+.rrow > .ic { color: var(--ink-soft) }
+.val { font: 600 .95rem/1 var(--display); white-space: nowrap }
+.bar { position: relative; flex: 1; height: 12px; border-radius: 6px; background: var(--paper); border: 1px solid var(--line); min-width: 0 }
+.bar b { position: absolute; inset: 0 auto 0 0; border-radius: 6px; background: var(--good) }
+.bar.no b { background: var(--bad) }
+.bar .mark { position: absolute; top: -4px; bottom: -4px; width: 3px; margin-left: -1.5px; border-radius: 2px; background: var(--ink) }
+.bar.body b { background: var(--sky) }
+.bar.name b { background: var(--peach) }
+.rname { font: 600 1.1rem/1.3 var(--display); min-width: 0; overflow-wrap: anywhere }
+.rrow.ok > .ic { color: var(--good) }
+.rrow.no > .ic { color: var(--bad) }
+.rrow.no .rname { text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: var(--bad); color: var(--ink-soft) }
+.rank { font: 700 .72rem/1 var(--display); border-radius: 99px; padding: 3px 6px; background: var(--paper); border: 1px solid var(--line); color: var(--ink-soft) }
+.alt .txt { flex: 1; min-width: 0; overflow-wrap: anywhere; color: var(--ink-soft) }
+.pair { display: grid; gap: 5px; flex: 1; min-width: 0 }
+.pair .rrow { gap: 6px }
+.fix { display: flex; gap: 8px; align-items: center; border-radius: 12px; padding: 8px 10px; background: color-mix(in srgb, var(--bad) 12%, var(--card)); color: var(--ink); font-size: .88rem }
+.fix .ic { color: var(--bad) }
+canvas.env { width: 100%; height: 56px; display: block; border-radius: 10px; background: var(--paper) }
+.acts { display: flex; gap: 8px }
+.acts .btn.primary { flex: 1 }
+
+/* rating faces */
+.rate-row { display: grid; grid-template-columns: 30px 1fr; gap: 8px; align-items: center }
+.rate-row > .ic { color: var(--ink-soft) }
+.scale { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px }
+.scale .pick { padding: 4px 0; display: grid; place-items: center; border-radius: 14px }
+.face { width: 40px; height: 40px; max-width: 100% }
+.face .f { fill: var(--face); stroke: var(--ink-soft); stroke-width: 1.6 }
+.face .e { fill: var(--ink) }
+.face .m { fill: none; stroke: var(--ink); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round }
+.face .mf { fill: var(--ink) }
+.face .b { fill: var(--peach) }
+.face .d { fill: var(--sky) }
+.face .sp { fill: none; stroke: var(--warn); stroke-width: 1.6; stroke-linecap: round }
+.scale .pick[aria-pressed="true"] .face { transform: scale(1.12) }
+textarea:focus-visible { outline: 3px solid var(--lit); outline-offset: 1px }
+textarea { width: 100%; min-height: 56px; font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px }
+textarea.code { font: .72rem/1.4 ui-monospace, Menlo, monospace; min-height: 120px }
+
+/* picker */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px }
+.pspell { display: flex; gap: 8px; align-items: center; text-align: left; font-weight: 600; min-width: 0 }
+.pspell span { min-width: 0; overflow-wrap: anywhere }
+.pspell .ic { color: var(--ink-soft) }
+.pintent { display: grid; justify-items: center; font-size: .8rem; font-weight: 600 }
+.pintent svg { width: 56px; height: 36px }
+
+/* results */
+.sessions { display: grid; gap: 10px }
+.session { border: 1px solid var(--line); border-radius: 16px; padding: 12px; display: grid; gap: 10px }
+.shead { display: flex; gap: 8px; align-items: center; font-weight: 600 }
+.shead .ic { color: var(--ink-soft) }
+.shead .when { margin-left: auto; font-size: .76rem; font-weight: 400; color: var(--ink-soft) }
+.live { width: 8px; height: 8px; border-radius: 50%; background: var(--peach) }
+.sbody { display: grid; grid-template-columns: 86px 1fr; gap: 10px; align-items: center }
+.gauge { width: 86px; height: 86px }
+.gauge .g-bg { fill: none; stroke: var(--line); stroke-width: 7 }
+.gauge .g-fg { fill: none; stroke-width: 7; stroke-linecap: round }
+.gauge .g-fg.ok { stroke: var(--good) }
+.gauge .g-fg.low { stroke: var(--warn) }
+.gauge .g-tick { stroke: var(--ink); stroke-width: 2.5; stroke-linecap: round }
+.gauge text { font: 700 14px var(--display); fill: var(--ink) }
+.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px }
+.tile { display: flex; gap: 5px; align-items: center; justify-content: center; min-width: 0; height: 40px; border-radius: 12px; background: var(--paper); padding: 0 4px }
+.tile .ic { color: var(--ink-soft); width: 18px; height: 18px }
+.tile svg.mini { width: 26px; height: 18px }
+.tile b { font: 600 .84rem/1 var(--display); white-space: nowrap }
+.tile .face { width: 26px; height: 26px }
+.empty { display: grid; justify-items: center; gap: 6px; padding: 12px; color: var(--ink-soft) }
+.empty .ic { width: 40px; height: 40px }
+details.raw > summary { cursor: pointer; color: var(--ink-soft); font: 600 .8rem/1 var(--display); list-style: none; display: inline-flex; gap: 6px; align-items: center }
+details.raw > summary::-webkit-details-marker { display: none }
+details.raw[open] > summary { margin-bottom: 8px }
+footer { font-size: .7rem; color: var(--ink-soft); text-align: center; opacity: .8 }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <!-- hand-drawn line icons: 24 grid, round caps, no fills (stroke = currentColor) -->
+  <symbol id="i-mic" viewBox="0 0 24 24"><path d="M9 6.2a3 3 0 0 1 6 0v5a3 3 0 0 1-6 0z"/><path d="M5.8 11a6.2 6.2 0 0 0 12.4 0"/><path d="M12 17.4v2.8"/><path d="M9.2 20.4h5.6"/></symbol>
+  <symbol id="i-ear" viewBox="0 0 24 24"><path d="M7.5 9.5a4.5 4.5 0 0 1 9 0c0 2.6-2 3.4-2.6 5-.5 1.5-.8 3.8-3 3.8a2.6 2.6 0 0 1-2.5-1.8"/><path d="M10.4 10a1.7 1.7 0 0 1 3.3.1c0 1.2-1.2 1.5-1.2 2.6"/></symbol>
+  <symbol id="i-jar" viewBox="0 0 24 24"><path d="M8.5 4.5h7"/><path d="M8 7h8c1 0 1.8.8 1.8 1.8v9.4c0 1.3-1 2.3-2.3 2.3h-7c-1.3 0-2.3-1-2.3-2.3V8.8C6.2 7.8 7 7 8 7z"/><path d="M9.5 12.5h5"/></symbol>
+  <symbol id="i-house" viewBox="0 0 24 24"><path d="M4 11.4 12 5l8 6.4"/><path d="M6.4 10v8.3c0 .9.7 1.7 1.6 1.7h8c.9 0 1.6-.8 1.6-1.7V10"/><path d="M10.4 20v-3.6a1.6 1.6 0 0 1 3.2 0V20"/></symbol>
+  <symbol id="i-cup" viewBox="0 0 24 24"><path d="M5 10h11v4a4.2 4.2 0 0 1-4.2 4.2H9.2A4.2 4.2 0 0 1 5 14z"/><path d="M16 11h1.4a2.1 2.1 0 0 1 0 4.2H16"/><path d="M8.6 6.8c0-1.1 1.2-1.1 1.2-2.3"/><path d="M12.2 6.8c0-1.1 1.2-1.1 1.2-2.3"/><path d="M4.5 21h12"/></symbol>
+  <symbol id="i-road" viewBox="0 0 24 24"><path d="M7.5 20.5 10.4 4"/><path d="M16.5 20.5 13.6 4"/><path d="M12 6.8v1.4"/><path d="M12 11.2v2"/><path d="M12 16.6v2.4"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 20.6s-6-5.4-6-9.8a6 6 0 0 1 12 0c0 4.4-6 9.8-6 9.8z"/><circle cx="12" cy="10.8" r="2.1"/></symbol>
+  <symbol id="i-meter" viewBox="0 0 24 24"><path d="M4.5 13v-2"/><path d="M8.2 16V8"/><path d="M12 19V5"/><path d="M15.8 15V9"/><path d="M19.5 13.5v-3"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3.6 5.6 6.1v5.2c0 4 2.7 7.4 6.4 8.9 3.7-1.5 6.4-4.9 6.4-8.9V6.1z"/></symbol>
+  <symbol id="i-sprout" viewBox="0 0 24 24"><path d="M12 20.5v-8"/><path d="M12 12.5C12 9 9.6 6.8 6 6.8 6 10.3 8.4 12.5 12 12.5z"/><path d="M12 14.2c0-3 2.2-5.1 5.6-5.1 0 3-2.2 5.1-5.6 5.1z"/></symbol>
+  <symbol id="i-wand" viewBox="0 0 24 24"><path d="M5 19.5 13.8 10.7"/><path d="M16.8 3.8c.4 1.8 1 2.4 2.8 2.8-1.8.4-2.4 1-2.8 2.8-.4-1.8-1-2.4-2.8-2.8 1.8-.4 2.4-1 2.8-2.8z"/><path d="M9.5 5.5v1.6"/><path d="M8.7 6.3h1.6"/></symbol>
+  <symbol id="i-bubble" viewBox="0 0 24 24"><path d="M6.6 4.8h10.8c1.4 0 2.5 1.1 2.5 2.5v6.2c0 1.4-1.1 2.5-2.5 2.5h-5.6l-4.2 3.4v-3.4h-1c-1.4 0-2.5-1.1-2.5-2.5V7.3c0-1.4 1.1-2.5 2.5-2.5z"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12.5" r="7.8"/><path d="M12 8.6v4l2.6 1.8"/></symbol>
+  <symbol id="i-redo" viewBox="0 0 24 24"><path d="M18.6 12.5a6.6 6.6 0 1 1-2-4.7"/><path d="M17.4 4.4v3.8h-3.8"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path d="M5 12h13"/><path d="M13.2 7.2 18 12l-4.8 4.8"/></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M6.5 20.5v-16"/><path d="M6.5 5.2h10.2c.8 0 1.2.9.7 1.5L15.6 9l1.8 2.3c.5.6.1 1.5-.7 1.5H6.5"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M9.5 7h9"/><path d="M9.5 12h9"/><path d="M9.5 17h9"/><path d="M5.5 7h.01"/><path d="M5.5 12h.01"/><path d="M5.5 17h.01"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5.4 12.6 9.8 17 18.6 7.6"/></symbol>
+  <symbol id="i-cross" viewBox="0 0 24 24"><path d="M7 7l10 10"/><path d="M17 7 7 17"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11" height="11" rx="2.4"/><path d="M15.5 8.5V6.6c0-1.2-.9-2.1-2.1-2.1H6.6c-1.2 0-2.1.9-2.1 2.1v6.8c0 1.2.9 2.1 2.1 2.1h1.9"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4.5v10.5"/><path d="M7.6 10.8 12 15.2l4.4-4.4"/><path d="M5.2 19.5h13.6"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 14.5V4.5"/><path d="M8.2 8.2 12 4.4l3.8 3.8"/><path d="M6.2 11.5v7c0 .9.7 1.6 1.6 1.6h8.4c.9 0 1.6-.7 1.6-1.6v-7"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M5 7.2h14"/><path d="M9.8 7.2V5.6c0-.6.5-1.1 1.1-1.1h2.2c.6 0 1.1.5 1.1 1.1v1.6"/><path d="M7 7.2l.9 11.6c.1.9.8 1.6 1.7 1.6h4.8c.9 0 1.6-.7 1.7-1.6L17 7.2"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7.4 18.2a4 4 0 0 1-.5-8 5.4 5.4 0 0 1 10.4-.9 4.5 4.5 0 0 1 .3 8.9z"/><path d="M10 13.2l1.6 1.6 2.8-3"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path d="M12 7.8v4.8"/><path d="M12 16.2h.01"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M5 19.5h14"/><path d="M7.5 16v-4"/><path d="M12 16V7.5"/><path d="M16.5 16v-6"/></symbol>
+  <symbol id="i-shy" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path d="M8.6 10.6h1.6"/><path d="M13.8 10.6h1.6"/><path d="M10 15.4q1-.9 2 0t2 0"/><path d="M6.6 13.4h.8"/><path d="M16.6 13.4h.8"/></symbol>
+  <symbol id="i-fun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path d="M8.4 10.8q1.2-1.6 2.4 0"/><path d="M13.2 10.8q1.2-1.6 2.4 0"/><path d="M8.8 13.8q3.2 3.4 6.4 0"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M6.6 4.5h8.2l3 3v11.4c0 .9-.7 1.6-1.6 1.6H6.6c-.9 0-1.6-.7-1.6-1.6V6.1c0-.9.7-1.6 1.6-1.6z"/><path d="M8.6 11h6.8"/><path d="M8.6 15h4.4"/></symbol>
+  <symbol id="i-hand" viewBox="0 0 24 24"><path d="M9 11.5V6.2a1.5 1.5 0 0 1 3 0v4.6"/><path d="M12 10.2V8.6a1.5 1.5 0 0 1 3 0v2.8"/><path d="M15 11.2a1.5 1.5 0 0 1 3 0v2.6c0 3.6-2.6 6.4-6 6.4-2.4 0-3.8-1.2-5-3.2l-1.6-2.8a1.4 1.4 0 0 1 2.4-1.5L9 14"/></symbol>
+</svg>
+<main>
+  <header>
+    <div class="top">
+      <h1>ห้องทดลองเสียง</h1>
+      <div id="status"></div>
+    </div>
+    <details id="help">
+      <summary aria-label="วิธีใช้">?</summary>
+      <div class="help">
+        <div><svg class="ic"><use href="#i-flag"/></svg><span>1 รอบ = 9 ท่า × 2 แบบ ราว 7 นาที ทำ 3 ที่: บ้าน ร้านกาแฟ ริมถนน</span></div>
+        <div><svg class="ic"><use href="#i-hand"/></svg><span>กดค้างตั้งแต่เริ่มพูด ปล่อยเมื่อพูดชื่อท่าจบ</span></div>
+        <div><span id="help-plain"></span><span>พูดปกติทั้งบท</span></div>
+        <div><span id="help-emph"></span><span>บทเบาๆ แล้วชื่อท่าดังกว่า</span></div>
+        <div><svg class="ic"><use href="#i-meter"/></svg><span>ระบบไม่ได้ยินเลย: ปิดวัดความดัง แล้วเริ่มใหม่</span></div>
+        <div><svg class="ic"><use href="#i-alert"/></svg><span>iPhone: เปิด Siri และ Dictation ก่อน</span></div>
+        <div><svg class="ic"><use href="#i-jar"/></svg><span>ผลเก็บในเครื่องนี้เท่านั้น ไม่มีไฟล์เสียง</span></div>
+        <div><svg class="ic"><use href="#i-copy"/></svg><span>ส่งผล: หน้าผลรวม → คัดลอกหรือไฟล์</span></div>
+      </div>
+    </details>
+  </header>
+
+  <nav aria-label="หน้า">
+    <a href="#test" id="nav-test"><svg class="ic s" aria-hidden="true"><use href="#i-mic"/></svg>ทดสอบ</a>
+    <a href="#results" id="nav-results"><svg class="ic s" aria-hidden="true"><use href="#i-chart"/></svg>ผลรวม</a>
+  </nav>
+
+  <section id="view-test" style="display:grid;gap:12px">
+    <div class="card" id="setup">
+      <div class="places" id="places" role="group" aria-label="ที่ทดสอบ"></div>
+      <div class="go">
+        <label class="toggle" title="วัดความดังไปพร้อมกัน">
+          <input type="checkbox" id="opt-meter" checked aria-label="วัดความดังไปพร้อมกัน">
+          <svg class="ic" aria-hidden="true"><use href="#i-meter"/></svg><span class="track"></span>
+        </label>
+        <button class="btn primary" id="btn-start"><svg class="ic" aria-hidden="true"><use href="#i-mic"/></svg>เริ่ม</button>
+      </div>
+      <p class="consent" id="setup-note"><svg class="ic s" aria-hidden="true"><use href="#i-cloud"/></svg><span>เสียงส่งไป Google/Apple เพื่อแปลงเป็นข้อความ</span></p>
+    </div>
+
+    <div class="card" id="spell-card">
+      <div class="head">
+        <div class="progress" id="progress" aria-hidden="true"></div>
+        <span id="step-label"></span>
+        <span id="place-label" role="img"></span>
+      </div>
+      <div class="spell-top">
+        <div class="spell-head">
+          <div class="tags" id="spell-tags"></div>
+          <p class="spell-name" id="spell-name"></p>
+        </div>
+        <div class="intent" id="intent" role="img"></div>
+      </div>
+      <div class="karaoke" id="karaoke"></div>
+      <p class="heard-live" id="heard-live" aria-live="polite"></p>
+      <div class="hold-wrap" id="hold-wrap">
+        <span class="ring r2"></span><span class="ring"></span>
+        <button class="hold" id="hold" disabled aria-label="กดค้างแล้วร่าย"><svg class="ic" aria-hidden="true"><use href="#i-mic"/></svg></button>
+      </div>
+      <p id="hold-hint"></p>
+    </div>
+
+    <div class="card result" id="result" hidden>
+      <div class="row between">
+        <span class="mult" id="r-mult"></span>
+        <div id="r-side" class="row"></div>
+      </div>
+      <div id="r-kv" style="display:grid;gap:10px"></div>
+      <canvas class="env" id="r-env" width="600" height="112" aria-hidden="true"></canvas>
+      <div class="acts">
+        <button class="btn round" id="btn-retry" aria-label="ลองข้อนี้อีกครั้ง" title="ลองอีกครั้ง"><svg class="ic" aria-hidden="true"><use href="#i-redo"/></svg></button>
+        <button class="btn primary" id="btn-next">ต่อไป<svg class="ic" aria-hidden="true"><use href="#i-next"/></svg></button>
+      </div>
+    </div>
+
+    <div class="card" id="rate" hidden>
+      <div class="rate-row"><svg class="ic l" role="img" aria-label="อาย"><use href="#i-shy"/></svg><div class="scale" id="rate-shy" role="group" aria-label="อายแค่ไหน 1 ไม่อายเลย ถึง 5 อายมาก"></div></div>
+      <div class="rate-row"><svg class="ic l" role="img" aria-label="สนุก"><use href="#i-fun"/></svg><div class="scale" id="rate-fun" role="group" aria-label="สนุกแค่ไหน 1 ไม่สนุก ถึง 5 สนุกมาก"></div></div>
+      <div class="rate-row"><svg class="ic l" aria-hidden="true"><use href="#i-note"/></svg><textarea id="rate-note" placeholder="จดสั้นๆ (ไม่บังคับ)" aria-label="บันทึกสั้นๆ"></textarea></div>
+      <button class="btn primary" id="btn-save-rate"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>บันทึก</button>
+    </div>
+
+    <div class="row between">
+      <button class="btn" id="btn-end" hidden><svg class="ic" aria-hidden="true"><use href="#i-flag"/></svg>จบรอบ</button>
+      <button class="btn" id="btn-pick" hidden><svg class="ic" aria-hidden="true"><use href="#i-list"/></svg>เลือกเอง</button>
+    </div>
+    <div class="card" id="picker" hidden>
+      <div class="grid2" id="pick-intent"></div>
+      <div class="grid2" id="pick-spells"></div>
+    </div>
+  </section>
+
+  <section id="view-results" hidden style="display:grid;gap:12px">
+    <div class="sessions" id="sum-list"></div>
+    <div class="card">
+      <div class="row">
+        <button class="btn primary" id="btn-copy"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg>คัดลอก</button>
+        <button class="btn" id="btn-download"><svg class="ic" aria-hidden="true"><use href="#i-download"/></svg>ไฟล์</button>
+        <button class="btn round" id="btn-share" hidden aria-label="แชร์"><svg class="ic" aria-hidden="true"><use href="#i-share"/></svg></button>
+        <span class="small muted" id="copy-msg" aria-live="polite"></span>
+      </div>
+      <details class="raw" id="export-box">
+        <summary><svg class="ic s" aria-hidden="true"><use href="#i-note"/></svg>JSON</summary>
+        <textarea class="code" id="export" readonly aria-label="ผลทั้งหมดแบบ JSON"></textarea>
+      </details>
+      <div class="row between">
+        <button class="btn round" id="btn-clear" aria-label="ล้างผลทั้งหมด" title="ล้างผลทั้งหมด"><svg class="ic" aria-hidden="true"><use href="#i-trash"/></svg></button>
+        <div class="row" id="clear-confirm" hidden>
+          <span class="small">ลบทุกรอบ?</span>
+          <button class="btn" id="btn-clear-yes">ลบ</button>
+          <button class="btn" id="btn-clear-no">ไม่</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer id="build"></footer>
+</main>
+
+<script>// JS port of the voice rules, for the voice test web page.
+// Mirrors systems/cast/voice_matcher.gd, cast_rules.gd and voice_loudness.gd line for line;
+// tests/test_voice_parity.gd runs both on the same cases and fails on any difference.
+// Numbers come from data/balance.json (configure(balance) before use).
+(function (root) {
+  "use strict";
+  let C = null; // balance.cast_method
+
+  function configure(balance) { C = balance.cast_method; }
+
+  // --- VoiceMatcher ---
+  const SKIP = new Set(Array.from(" \t\n.,!?'\"-–—…ๆฯ"));
+
+  function normalize(s) {
+    let out = "";
+    for (const ch of String(s).toLowerCase()) if (!SKIP.has(ch)) out += ch;
+    return out;
+  }
+
+  function levenshtein(a, b) {
+    a = Array.from(a); b = Array.from(b);
+    const n = a.length, m = b.length;
+    if (n === 0) return m;
+    if (m === 0) return n;
+    let prev = new Int32Array(m + 1), cur = new Int32Array(m + 1);
+    for (let j = 0; j <= m; j++) prev[j] = j;
+    for (let i = 1; i <= n; i++) {
+      cur[0] = i;
+      const ai = a[i - 1];
+      for (let j = 1; j <= m; j++) {
+        const cost = ai === b[j - 1] ? 0 : 1;
+        cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+      }
+      const t = prev; prev = cur; cur = t;
+    }
+    return prev[m];
+  }
+
+  const len = (s) => Array.from(s).length;
+  const substr = (s, from, count) => Array.from(s).slice(from, count === undefined ? undefined : from + count).join("");
+  const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
+
+  function similarity(heard, expected) {
+    const a = normalize(heard), b = normalize(expected);
+    if (b.length === 0) return a.length === 0 ? 1 : 0;
+    const d = levenshtein(a, b);
+    return clamp(1 - d / Math.max(len(a), len(b)), 0, 1);
+  }
+
+  function spokenLines(sp) { return sp.chant.concat([sp.name]); }
+
+  function nameAtEnd(heard, spellName, threshold = 0.7) {
+    const h = normalize(heard), n = normalize(spellName);
+    if (n.length === 0 || h.length === 0) return false;
+    return similarity(substr(h, Math.max(0, len(h) - len(n))), n) >= threshold;
+  }
+
+  function matchChant(heard, lines) { return similarity(heard, lines.join("")); }
+
+  const LINE_TAIL_MIN = 0.5;
+
+  function linesSpoken(heard, lines, threshold = 0.8) {
+    const h = normalize(heard);
+    let done = 0, expected = "";
+    for (const line of lines) {
+      const own = normalize(line);
+      expected += own;
+      const prefix = substr(h, 0, Math.min(len(h), len(expected)));
+      const tail = substr(prefix, Math.max(0, len(prefix) - len(own)));
+      if (similarity(prefix, expected) >= threshold && similarity(tail, own) >= LINE_TAIL_MIN) done += 1;
+      else break;
+    }
+    return done;
+  }
+
+  // --- CastRules ---
+  const lerp = (a, b, t) => a + (b - a) * t;
+
+  function multiplier(method) {
+    if ((method.kind || "rune") === "rune") return C.rune;
+    const m = clamp(method.match || 0, 0, 1);
+    const lo = C.voice_min_match;
+    if (m < lo - 1e-9) return 0;
+    const k = (m - lo) / Math.max(1e-6, 1 - lo);
+    const e = clamp(method.emphasis || 0, 0, 1);
+    return lerp(C.voice_at_min, C.voice_at_max, k) + C.emphasis_bonus * e;
+  }
+
+  function emphasisFromDb(bodyDb, endDb) {
+    const lo = C.emphasis_db_start, hi = C.emphasis_db_full;
+    return clamp((endDb - bodyDb - lo) / Math.max(1e-6, hi - lo), 0, 1);
+  }
+
+  function fromVoice(heard, sp, bodyDb, endDb) {
+    const lines = spokenLines(sp);
+    let e = 0;
+    if (nameAtEnd(heard, sp.name, C.name_match_min)) e = emphasisFromDb(bodyDb, endDb);
+    return { kind: "voice", match: matchChant(heard, lines), emphasis: e };
+  }
+
+  function fromVoiceFrames(heard, sp, framesDb, frameSec) {
+    const loud = split(framesDb, frameSec, len(normalize(heard)), len(normalize(sp.name)));
+    if (!loud.ok) return fromVoice(heard, sp, 0, 0);
+    return fromVoice(heard, sp, loud.body_db, loud.end_db);
+  }
+
+  // --- VoiceLoudness ---
+  // Godot's roundi/round: halves away from zero (Math.round goes toward +inf).
+  const roundi = (x) => Math.sign(x) * Math.floor(Math.abs(x) + 0.5);
+
+  function percentile(values, p) {
+    if (values.length === 0) return 0;
+    const s = values.slice().sort((x, y) => x - y);
+    const i = clamp(Math.floor(p * (s.length - 1) + 0.5), 0, s.length - 1);
+    return s[i];
+  }
+
+  function quietest(values, window) {
+    window = Math.min(window, values.length);
+    let best = Infinity;
+    for (let i = 0; i < values.length - window + 1; i++) {
+      let sum = 0;
+      for (let k = 0; k < window; k++) sum += values[i + k];
+      best = Math.min(best, sum / window);
+    }
+    return best;
+  }
+
+  function split(framesDb, frameSec, totalChars, nameChars) {
+    const c = C.loudness;
+    const out = { ok: false, floor_db: 0, body_db: 0, end_db: 0, speech_sec: 0, sec_per_char: 0, body_from: 0, split_at: 0, last: 0 };
+    if (framesDb.length === 0 || frameSec <= 0) return out;
+    const floorDb = quietest(framesDb, Math.max(1, roundi(c.floor_window_sec / frameSec)));
+    const gate = floorDb + c.speech_above_floor_db;
+    let first = -1, last = -1;
+    for (let i = 0; i < framesDb.length; i++) {
+      if (framesDb[i] >= gate) { if (first < 0) first = i; last = i; }
+    }
+    out.floor_db = floorDb;
+    if (first < 0) return out;
+    const speechSec = (last - first + 1) * frameSec;
+    out.speech_sec = speechSec;
+    if (speechSec < c.min_speech_sec - 1e-9) return out;
+    totalChars = Math.max(totalChars, 1);
+    nameChars = clamp(nameChars, 0, totalChars);
+    let spc = c.sec_per_char;
+    if (speechSec >= totalChars * spc * c.whole_span_ratio) spc = speechSec / totalChars;
+    out.sec_per_char = spc;
+    const endLen = Math.max(1, roundi(Math.max(nameChars * spc, c.min_end_sec) / frameSec));
+    const bodyLen = roundi((totalChars - nameChars) * spc / frameSec);
+    const splitAt = Math.max(0, last - endLen + 1);
+    out.end_db = percentile(framesDb.slice(splitAt, last + 1), c.end_percentile);
+    const bodyFrom = Math.max(0, splitAt - bodyLen);
+    out.body_from = bodyFrom; out.split_at = splitAt; out.last = last;
+    out.body_db = splitAt > bodyFrom ? percentile(framesDb.slice(bodyFrom, splitAt), c.body_percentile) : floorDb;
+    out.ok = true;
+    return out;
+  }
+
+  const api = {
+    configure, normalize, similarity, spokenLines, nameAtEnd, matchChant, linesSpoken,
+    multiplier, emphasisFromDb, fromVoice, fromVoiceFrames, percentile, quietest, split,
+  };
+  if (typeof module !== "undefined" && module.exports) module.exports = api;
+  else root.VoiceCore = api;
+})(typeof self !== "undefined" ? self : this);
+</script>
+<script>
+"use strict";
+const DATA = {"balance": {"cast_method": {"_note": "เสียงคือวิธีหลัก: พูดตรง 80-100% ได้ x1.5-x1.75 บวกโบนัสเน้นชื่อท่าตอนท้ายอีกสูงสุด +0.25 (รวมสูงสุด x2.0) วาดอักขระแสดงเป็น x1.0 มอนสเตอร์ตั้งเลือดตาม monster.hp_scale", "rune": 1.0, "voice_min_match": 0.8, "voice_at_min": 1.5, "voice_at_max": 1.75, "emphasis_bonus": 0.25, "_emphasis_note": "เน้น = ชื่อท่าตอนท้ายดังกว่าบทคาถาก่อนหน้ากี่ dB (เทียบกันเอง ไม่ใช่ความดังสัมบูรณ์) เริ่มนับที่ +emphasis_db_start เต็มที่ +emphasis_db_full ตะโกนทั้งบทไม่ได้โบนัส", "emphasis_db_start": 3.0, "emphasis_db_full": 9.0, "name_match_min": 0.7, "loudness": {"_note": "แบ่งความดังของตัวบทกับชื่อท่าตอนท้าย จากความดังรายเฟรม (dB) ระหว่างกดค้าง เสียงรอบข้าง = ช่วง floor_window_sec ที่เงียบที่สุด (ไม่ใช้เปอร์เซ็นไทล์ เพราะบทยาวที่พูดต่อเนื่องมีช่วงเงียบน้อยมาก) ระบบฟังเสียงไม่บอกเวลาของแต่ละคำ จึงนับย้อนจากจุดที่เสียงจบ: ชื่อท่ายาว (จำนวนตัวอักษร x วินาทีต่อตัวอักษร) ตัวบทอยู่ก่อนหน้านั้น ถ้าช่วงที่ดังพอยาวสมกับข้อความทั้งหมด ใช้ความเร็วพูดที่วัดได้จริง ถ้าสั้นกว่ามาก (whole_span_ratio) ถือว่ากระซิบบทจนไมค์แยกจากเสียงรอบข้างไม่ออก แล้วใช้ sec_per_char ใช้สูตรเดียวกันทั้งเกม (VoiceLoudness) และหน้าเว็บทดสอบเสียง ค่า sec_per_char ยังเป็นค่าเดา ต้องปรับจากผลทดสอบเสียงจริง", "frame_sec": 0.05, "floor_window_sec": 0.25, "speech_above_floor_db": 6.0, "min_speech_sec": 0.2, "sec_per_char": 0.07, "whole_span_ratio": 0.75, "min_end_sec": 0.3, "end_percentile": 0.75, "body_percentile": 0.5}}}, "spells": [{"id": "aegis", "role": "tank", "element": "earth", "tier": 0, "name": "โล่ปฐพี", "name_en": "Earth Aegis", "kind": "โล่ปฐพี", "chant": ["ม่านแสงศักดิ์สิทธิ์", "จงกั้นขีดมลทิน"]}, {"id": "aqua", "role": "tank", "element": "water", "tier": 1, "name": "ปราการวารี", "name_en": "Tide Bulwark", "kind": "บาเรียวารี", "chant": ["จากความลึกใต้ท้องทะเล", "จงผงาดเป็นปราการแห่งวารี", "โล่เกลียวคลื่นคลั่งสมุทร"]}, {"id": "druid", "role": "tank", "element": "plant", "tier": 2, "name": "ปราการไม้พันปี", "name_en": "Thousand-Year Bulwark", "kind": "ปราการพฤกษาบรรพกาล", "chant": ["โอ้ รากแก้วแห่งพฤกษาโบราณ", "จงสูบฉีดพฤกษานุภาพลงสู่สายเลือดข้า", "หลอมผิวกายให้แกร่งดังเปลือกไม้พันปี", "เปลี่ยนกายนี้เป็นปราการที่ไม่มีวันล้ม", "มหาเวทสถิตพฤกษาบรรพกาล"]}, {"id": "sprout", "role": "support", "element": "plant", "tier": 0, "name": "ใบไม้สมานแผล", "name_en": "Healing Leaf", "kind": "สมานแผลใบไม้", "chant": ["ละอองพฤกษา", "จงสมานเนื้อร้าย"]}, {"id": "aura", "role": "support", "element": "water", "tier": 1, "name": "ม่านรุ้ง", "name_en": "Rainbow Veil", "kind": "รัศมีชำระมลทิน", "chant": ["ละอองแสงแห่งอรุณรุ่งเอ๋ย", "ถักทอสายรุ้งเป็นปราการคุ้มภัย", "รัศมีชำระมลทินศักดิ์สิทธิ์"]}, {"id": "sanct", "role": "support", "element": "sun", "tier": 2, "name": "ตะวันคืนชีพ", "name_en": "Sunrise Revival", "kind": "มหาปาฏิหาริย์เยียวยา", "chant": ["โอ้ แสงแห่งการก่อกำเนิด", "ย้อนคืนสายเลือดที่ไหลหลั่ง", "สมานรอยแผลที่ฉีกขาด", "จงปฏิเสธความดับสูญ", "มหาปาฏิหาริย์หัตถ์สวรรค์เยียวยา"]}, {"id": "fire", "role": "ritual", "element": "fire", "tier": 0, "name": "ลูกไฟ", "name_en": "Fireball", "kind": "ลูกไฟ", "chant": ["เพลิงเอ๋ย", "จงพุ่ง"]}, {"id": "lance", "role": "ritual", "element": "ice", "tier": 1, "name": "หอกน้ำแข็ง", "name_en": "Ice Lance", "kind": "หอกน้ำแข็ง", "chant": ["สายลมแห่งฤดูหนาวเอ๋ย", "จงแช่แข็งแม้กระทั่งกาลเวลา", "หอกเกล็ดหิมะแช่แข็งโลกันตร์"]}, {"id": "grand", "role": "ritual", "element": "sun", "tier": 2, "name": "ลำแสงพิพากษา", "name_en": "Judgement Ray", "kind": "ลำแสงพิพากษา", "chant": ["โอ้ แสงแห่งอรุณรุ่งอันเป็นนิรันดร์", "จงหลอมรวมน้ำตาของผู้ศรัทธา", "ชำระบาปที่แปดเปื้อนบนพสุนธรา", "จงแหวกม่านฟ้า แล้วพิพากษาศัตรู", "มหาเวททัศนีย์สวรรค์พิพากษาโลก"]}], "build": "2026-10-30 6b74764", "targets": {"pass_quiet": 0.9, "pass_street": 0.75, "latency_p90_ms": 1500, "emph_detect": 0.8, "plain_false": 0.2}};
+const V = window.VoiceCore;
+V.configure(DATA.balance);
+const LOUD = DATA.balance.cast_method.loudness;
+const FRAME_MS = Math.round(LOUD.frame_sec * 1000);
+const PRE_FRAMES = Math.round(400 / FRAME_MS);   // keep 0.4 s before the press: the room
+const TAIL_MS = 250;                              // keep measuring a moment after release
+const RESULT_TIMEOUT_MS = 8000;
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const STORE_KEY = "smk-voice-test";
+// go / no-go targets from tools/voice_report.py (TARGETS), copied in by build_voice_test.py
+const TARGETS = DATA.targets || { pass_quiet: 0.9, pass_street: 0.75 };
+
+const ROLE = { tank: "พิทักษ์", support: "สนับสนุน", ritual: "พิธีกรรม" };
+const ROLE_ICON = { tank: "shield", support: "sprout", ritual: "wand" };
+const ELEM = { earth: "ดิน", water: "น้ำ", wind: "ลม", fire: "ไฟ", plant: "พืช", lightning: "สายฟ้า", stone: "หิน", ice: "น้ำแข็ง", sun: "สุริยัน", moon: "จันทรา" };
+const ELEM_COLOR = { earth: "#c99a6a", water: "#6fb3e0", wind: "#93d8c2", fire: "#ff8f6b", plant: "#7cc47f", lightning: "#f2cb4c", stone: "#a6a2b8", ice: "#a9def0", sun: "#f5b84a", moon: "#b9a3e8" };
+const TIER = ["ขั้นต้น", "ขั้นกลาง", "ขั้นสูง"];
+const PLACES = [
+  { id: "home", th: "บ้าน", icon: "house" }, { id: "cafe", th: "ร้านกาแฟ", icon: "cup" },
+  { id: "street", th: "ริมถนน", icon: "road" }, { id: "other", th: "ที่อื่น", icon: "pin" }];
+const INTENT = {
+  plain: { th: "ปกติ", how: "พูดปกติทั้งบท" },
+  emphasis: { th: "เน้นท้าย", how: "พูดบทเบาๆ แล้วพูดชื่อท่าให้ดังกว่า" } };
+// error -> one short fix (6 words or fewer)
+const FIX = {
+  "not-allowed": "เปิดสิทธิ์ไมค์ในเบราว์เซอร์",
+  "service-not-allowed": "เปิด Siri และ Dictation",
+  "audio-capture": "ปิดวัดความดัง แล้วเริ่มใหม่",
+  "no-speech": "พูดใกล้มือถืออีกนิด",
+  "network": "ต่ออินเทอร์เน็ตก่อน",
+  "language-not-supported": "เครื่องนี้ฟังภาษาไทยไม่ได้",
+  "timeout": "ระบบไม่ตอบ ลองใหม่",
+  "start-failed": "รีเฟรชหน้า แล้วลองใหม่",
+  "tap": "กดค้างจนพูดชื่อท่าจบ",
+  "meter_dead": "ปิดวัดความดัง แล้วเริ่มใหม่" };
+
+// Test order: short spells first so the tester warms up, then the long ones.
+const ORDER = DATA.spells.slice().sort((a, b) => a.tier - b.tier || ["tank", "support", "ritual"].indexOf(a.role) - ["tank", "support", "ritual"].indexOf(b.role));
+const PLAN = [...ORDER.map((s) => ({ spell: s.id, intent: "plain" })), ...ORDER.map((s) => ({ spell: s.id, intent: "emphasis" }))];
+const spellById = Object.fromEntries(DATA.spells.map((s) => [s.id, s]));
+const $ = (id) => document.getElementById(id);
+
+// ---------- store (this device only) ----------
+function loadStore() {
+  try { const s = JSON.parse(localStorage.getItem(STORE_KEY)); if (s && s.sessions) return s; } catch (e) {}
+  return { format: "say-my-skill/voice-test@1", sessions: [] };
+}
+let store = loadStore();
+function saveStore() { try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch (e) {} }
+const current = () => store.sessions.find((s) => s.id === store.active && !s.rating) || null;
+
+// ---------- state ----------
+let place = "home", step = 0, override = null;
+let mic = null;              // {ctx, analyser, buf, stream, timer, settings}
+let ring = [];               // last frames before the press
+let rec = null;              // the cast being recorded
+let recognition = null;
+let lastDb = -100;
+
+const now = () => performance.now();
+
+// ---------- mic + loudness frames ----------
+async function openMic() {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  const ctx = new Ctx();
+  await ctx.resume();
+  const analyser = ctx.createAnalyser();
+  analyser.fftSize = 2048;
+  ctx.createMediaStreamSource(stream).connect(analyser);
+  const track = stream.getAudioTracks()[0];
+  const st = track && track.getSettings ? track.getSettings() : {};
+  mic = { ctx, analyser, stream, buf: new Float32Array(analyser.fftSize),
+    settings: { echoCancellation: st.echoCancellation, noiseSuppression: st.noiseSuppression, autoGainControl: st.autoGainControl, sampleRate: st.sampleRate || ctx.sampleRate } };
+  mic.timer = setInterval(tick, FRAME_MS);
+}
+
+function tick() {
+  mic.analyser.getFloatTimeDomainData(mic.buf);
+  let sum = 0;
+  for (let i = 0; i < mic.buf.length; i++) sum += mic.buf[i] * mic.buf[i];
+  const db = Math.max(-100, 20 * Math.log10(Math.sqrt(sum / mic.buf.length) || 1e-5));
+  lastDb = Math.round(db * 10) / 10;
+  if (rec && rec.recording) rec.frames.push(lastDb);
+  else { ring.push(lastDb); if (ring.length > PRE_FRAMES) ring.shift(); }
+  // the level rings around the hold button (display only)
+  $("hold-wrap").style.setProperty("--lv", Math.max(0, Math.min(1, (lastDb + 75) / 55)).toFixed(3));
+}
+
+// ---------- recogniser ----------
+function topText(segments, k = 0) {
+  // Chrome on Android can repeat the whole transcript in each result: keep the longest prefix chain.
+  let text = "";
+  for (const seg of segments) {
+    const alt = seg.alts[Math.min(k, seg.alts.length - 1)];
+    const t = alt ? alt.text.trim() : "";
+    if (!t) continue;
+    if (text && V.normalize(t).startsWith(V.normalize(text))) text = t;
+    else text = text ? text + " " + t : t;
+  }
+  return text;
+}
+
+function startCast() {
+  if (rec || !SR) return;
+  const plan = override || PLAN[step];
+  const sp = spellById[plan.spell];
+  rec = { spell: sp.id, intent: plan.intent, t0: now(), t: {}, frames: ring.slice(), pre_frames: ring.length,
+    segments: [], timeline: [], error: null, recording: !!mic, done: false };
+  $("result").hidden = true;
+  setHold("down");
+  const r = new SR();
+  recognition = r;
+  r.lang = "th-TH"; r.continuous = true; r.interimResults = true; r.maxAlternatives = 5;
+  const mark = (k) => { if (rec && rec.t[k] === undefined) rec.t[k] = Math.round(now() - rec.t0); };
+  r.onstart = () => mark("start");
+  r.onaudiostart = () => mark("audio");
+  r.onspeechstart = () => mark("speech");
+  r.onresult = (e) => {
+    if (!rec) return;
+    mark("first_result");
+    rec.segments = Array.from(e.results).map((res) => ({ final: res.isFinal,
+      alts: Array.from(res).map((a) => ({ text: a.transcript, conf: Math.round((a.confidence || 0) * 1000) / 1000 })) }));
+    if (rec.segments.some((s) => s.final)) rec.t.last_final = Math.round(now() - rec.t0);
+    const text = topText(rec.segments);
+    // [ms, characters heard so far]: may later tell when the spell name started in the audio
+    rec.timeline.push([Math.round(now() - rec.t0), Array.from(V.normalize(text)).length]);
+    showLive(text, sp);
+  };
+  r.onerror = (e) => { if (rec && !rec.error) rec.error = e.error || "error"; };
+  r.onend = () => { mark("end"); finishCast(); };
+  try { r.start(); } catch (e) { rec.error = "start-failed"; finishCast(); }
+}
+
+function releaseCast() {
+  if (!rec || rec.released) return;
+  rec.released = true;
+  rec.t.release = Math.round(now() - rec.t0);
+  setHold("wait");
+  if (rec.t.release < 350) rec.error = rec.error || "tap";
+  setTimeout(() => { if (rec) { rec.recording = false; rec.release_frame = rec.frames.length; } }, TAIL_MS);
+  try { recognition.stop(); } catch (e) {}
+  const mine = rec;
+  setTimeout(() => { if (rec === mine && !mine.done) { mine.error = mine.error || "timeout"; try { recognition.abort(); } catch (e) {} finishCast(); } }, RESULT_TIMEOUT_MS);
+}
+
+function finishCast() {
+  const r = rec;
+  if (!r || r.done) return;
+  if (!r.released) { r.t.release = Math.round(now() - r.t0); r.ended_early = true; }
+  r.done = true;
+  r.recording = false;
+  rec = null;
+  const sp = spellById[r.spell];
+  const lines = V.spokenLines(sp);
+  const heard = topText(r.segments);
+  // best of the recogniser's alternatives: does a second guess fit the chant better?
+  let best = { text: heard, match: V.matchChant(heard, lines) };
+  for (let k = 1; k < 5; k++) {
+    const t = topText(r.segments, k);
+    const m = V.matchChant(t, lines);
+    if (m > best.match + 1e-9) best = { text: t, match: m, k };
+  }
+  const frames = r.frames;
+  const chars = (s) => Array.from(V.normalize(s)).length;
+  const loud = V.split(frames, LOUD.frame_sec, chars(heard), chars(sp.name));
+  const method = mic ? V.fromVoiceFrames(heard, sp, frames, LOUD.frame_sec) : V.fromVoice(heard, sp, 0, 0);
+  const spread = frames.length ? Math.max(...frames) - Math.min(...frames) : 0;
+  const cast = {
+    n: (current()?.casts.length || 0) + 1, at: new Date().toISOString(),
+    spell: sp.id, tier: sp.tier, role: sp.role, intent: r.intent, expected: lines.join(" "),
+    heard, match: round3(method.match), name_at_end: V.nameAtEnd(heard, sp.name, DATA.balance.cast_method.name_match_min),
+    lines_spoken: V.linesSpoken(heard, lines), emphasis: round3(method.emphasis), multiplier: round3(V.multiplier(method)),
+    best_alt: best.k ? { text: best.text, match: round3(best.match), k: best.k } : null,
+    latin: /[a-z]/i.test(heard),
+    loud: mic ? roundObj(loud) : null, delta_db: mic && loud.ok ? round1(loud.end_db - loud.body_db) : null,
+    meter_dead: mic ? spread < 3 : null,
+    t: r.t, latency_ms: r.t.release !== undefined ? ((r.t.last_final ?? r.t.end ?? r.t.release) - r.t.release) : null,
+    error: r.error, ended_early: !!r.ended_early,
+    frame_ms: FRAME_MS, pre_frames: r.pre_frames, release_frame: r.release_frame ?? frames.length, frames,
+    segments: r.segments, timeline: r.timeline };
+  const s = current();
+  if (s) { s.casts.push(cast); saveStore(); }
+  setHold("idle");
+  render();
+  showResult(cast, sp);
+  showLive(heard, sp);
+  $("result").scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+const round1 = (x) => Math.round(x * 10) / 10;
+const round3 = (x) => Math.round(x * 1000) / 1000;
+const roundObj = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, typeof v === "number" ? round3(v) : v]));
+
+// ---------- drawing helpers (all hand-made SVG, no emoji, no icon font) ----------
+const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+const icon = (id, cls = "") => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
+const pct = (x) => Math.round(x * 100) + "%";
+const signed = (x, d = 1) => (x >= 0 ? "+" : "") + x.toFixed(d);
+
+// how to say it, as a picture: a speech bubble with the loudness of the chant drawn as bars
+function intentArt(kind, cls = "") {
+  const plain = [6, 7, 6, 7, 6, 7, 6];
+  const emph = [3, 3.5, 3, 3.5, 3, 11, 12];
+  const h = kind === "emphasis" ? emph : plain;
+  const bars = h.map((v, i) => {
+    const x = 11 + i * 6.3, last = kind === "emphasis" && i >= 5;
+    return `<rect x="${x.toFixed(1)}" y="${(19 - v).toFixed(1)}" width="3.6" height="${(v * 2).toFixed(1)}" rx="1.8" fill="${last ? "var(--peach)" : "var(--sky)"}"/>`;
+  }).join("");
+  return `<svg class="${cls}" viewBox="0 0 64 42" aria-hidden="true"><path d="M8 3h48a5 5 0 0 1 5 5v22a5 5 0 0 1-5 5H24l-8 6v-6H8a5 5 0 0 1-5-5V8a5 5 0 0 1 5-5z" fill="var(--card)" stroke="var(--ink-soft)" stroke-width="2" stroke-linejoin="round"/>${bars}</svg>`;
+}
+
+// rating faces: 5 per scale. shy = more blush, eyes look away then close; fun = mouth opens into a grin
+function faceArt(kind, n) {
+  const k = n - 1;
+  const blush = kind === "shy" ? [0, .3, .5, .75, .95][k] : [0, 0, .2, .35, .5][k];
+  let eyes = `<circle class="e" cx="14.5" cy="18" r="1.9"/><circle class="e" cx="25.5" cy="18" r="1.9"/>`;
+  let mouth = "", extra = "";
+  if (kind === "shy") {
+    if (k === 3) eyes = `<circle class="e" cx="12.6" cy="18.6" r="1.9"/><circle class="e" cx="23.6" cy="18.6" r="1.9"/>`;
+    if (k === 4) eyes = `<path class="m" d="M12.2 18.4q2.3 1.8 4.6 0"/><path class="m" d="M23.2 18.4q2.3 1.8 4.6 0"/>`;
+    mouth = [`<path class="m" d="M15 24.6q5 4.2 10 0"/>`, `<path class="m" d="M16.4 25.2q3.6 2.6 7.2 0"/>`, `<path class="m" d="M16.6 26h6.8"/>`,
+      `<path class="m" d="M15 26.2q1.7-1.7 3.4 0t3.3 0t3.3 0"/>`, `<path class="m" d="M16 26.2q1.3-1.4 2.7 0t2.6 0t2.7 0"/>`][k];
+    if (k === 4) extra = `<path class="d" d="M31.6 8.6c1.6 2.1 2.3 3.2 2.3 4.2a2.3 2.3 0 0 1-4.6 0c0-1 .7-2.1 2.3-4.2z"/>`;
+  } else {
+    if (k === 0) eyes = `<path class="m" d="M12.6 18.6h4"/><path class="m" d="M23.4 18.6h4"/>`;
+    if (k === 4) eyes = `<path class="m" d="M12.2 19.2q2.3-2.8 4.6 0"/><path class="m" d="M23.2 19.2q2.3-2.8 4.6 0"/>`;
+    mouth = [`<path class="m" d="M15.6 27.4q4.4-3.4 8.8 0"/>`, `<path class="m" d="M16 26.2h8"/>`, `<path class="m" d="M16 25.2q4 2.8 8 0"/>`,
+      `<path class="m" d="M14.6 24.4q5.4 5.2 10.8 0"/>`, `<path class="mf" d="M14.2 23.6h11.6q0 6.4-5.8 6.4t-5.8-6.4z"/>`][k];
+    if (k === 4) extra = `<path class="sp" d="M33 6.4v4M31 8.4h4"/>`;
+  }
+  return `<svg class="face" viewBox="0 0 40 40" aria-hidden="true"><circle class="f" cx="20" cy="20.5" r="15.6"/>` +
+    `<ellipse class="b" cx="11" cy="23.6" rx="3.4" ry="2.1" opacity="${blush}"/><ellipse class="b" cx="29" cy="23.6" rx="3.4" ry="2.1" opacity="${blush}"/>` +
+    eyes + mouth + extra + `</svg>`;
+}
+const RATE_WORDS = { shy: ["ไม่อายเลย", "อายนิดหน่อย", "อายพอควร", "อาย", "อายมาก"], fun: ["ไม่สนุก", "เฉยๆ", "พอสนุก", "สนุก", "สนุกมาก"] };
+
+function gauge(p, target) {
+  const r = 26, C = 2 * Math.PI * r, v = p ?? 0, ok = p !== null && p >= target;
+  const a = target * 2 * Math.PI - Math.PI / 2;
+  const tx = (rr) => (32 + rr * Math.cos(a)).toFixed(2), ty = (rr) => (32 + rr * Math.sin(a)).toFixed(2);
+  return `<svg class="gauge" viewBox="0 0 64 64" role="img" aria-label="ร่ายออก ${p === null ? "ยังไม่มี" : pct(p)} เป้า ${pct(target)}">` +
+    `<circle class="g-bg" cx="32" cy="32" r="${r}"/>` +
+    (v > 0 ? `<circle class="g-fg ${ok ? "ok" : "low"}" cx="32" cy="32" r="${r}" stroke-dasharray="${(v * C).toFixed(2)} ${C.toFixed(2)}" transform="rotate(-90 32 32)"/>` : "") +
+    `<line class="g-tick" x1="${tx(r - 6)}" y1="${ty(r - 6)}" x2="${tx(r + 6)}" y2="${ty(r + 6)}"/>` +
+    `<text x="32" y="37" text-anchor="middle">${p === null ? "–" : pct(p)}</text></svg>`;
+}
+
+// ---------- UI ----------
+function setHold(state) {
+  const b = $("hold"), w = $("hold-wrap");
+  b.classList.toggle("down", state === "down");
+  b.classList.toggle("wait", state === "wait");
+  w.classList.toggle("down", state === "down");
+  w.classList.toggle("wait", state === "wait");
+  b.setAttribute("aria-label", state === "down" ? "กำลังฟัง" : state === "wait" ? "รอผล" : "กดค้างแล้วร่าย");
+  b.innerHTML = icon(state === "wait" ? "ear" : "mic");
+}
+
+function showLive(text, sp) {
+  $("heard-live").innerHTML = text ? `${icon("ear", "s")}<span><span class="vh">ได้ยิน </span>${esc(text)}</span>` : "";
+  const lines = V.spokenLines(sp);
+  const n = V.linesSpoken(text, lines);
+  document.querySelectorAll("#karaoke .line").forEach((el, i) => el.classList.toggle("lit", i < n));
+}
+
+function showResult(c, sp) {
+  const cm = DATA.balance.cast_method;
+  $("result").hidden = false;
+  const m = $("r-mult");
+  m.textContent = c.multiplier > 0 ? "×" + c.multiplier.toFixed(2) : "ร่ายไม่ออก";
+  m.className = "mult" + (c.multiplier > 0 ? "" : " fail");
+  $("r-side").innerHTML = c.latency_ms !== null
+    ? `<span class="rrow" role="img" aria-label="รอผล ${(c.latency_ms / 1000).toFixed(2)} วินาที">${icon("clock")}<span class="val">${(c.latency_ms / 1000).toFixed(2)} วิ</span></span>` : "";
+  const pass = c.match >= cm.voice_min_match;
+  const rows = [];
+  rows.push(`<div class="rrow" role="img" aria-label="ตรงกับบท ${pct(c.match)} ต้องได้ ${pct(cm.voice_min_match)}">${icon("bubble")}` +
+    `<span class="bar ${pass ? "ok" : "no"}"><b style="width:${Math.max(2, Math.min(100, c.match * 100)).toFixed(1)}%"></b><i class="mark" style="left:${(cm.voice_min_match * 100).toFixed(1)}%"></i></span>` +
+    `<span class="val">${pct(c.match)}</span></div>`);
+  rows.push(`<div class="rrow ${c.name_at_end ? "ok" : "no"}" aria-label="ชื่อท่าตอนท้าย ${c.name_at_end ? "ได้ยิน" : "ไม่ได้ยิน"}">${icon(c.name_at_end ? "check" : "cross")}<span class="rname">${esc(sp.name)}</span></div>`);
+  if (c.best_alt) rows.push(`<div class="rrow alt" aria-label="คำเดาอันดับ ${c.best_alt.k + 1}">${icon("ear", "s")}<span class="rank">#${c.best_alt.k + 1}</span><span class="txt">${esc(c.best_alt.text)}</span><span class="val">${pct(c.best_alt.match)}</span></div>`);
+  if (c.loud && c.loud.ok) {
+    const L = c.loud, span = Math.max(12, L.end_db - L.floor_db, L.body_db - L.floor_db) + 2;
+    const w = (db) => Math.max(3, Math.min(100, (db - L.floor_db) / span * 100)).toFixed(1);
+    rows.push(`<div class="rrow" role="img" aria-label="ชื่อท่าดังกว่าบท ${signed(c.delta_db)} dB โบนัส +${(c.emphasis * cm.emphasis_bonus).toFixed(2)}">${icon("meter")}` +
+      `<span class="pair"><span class="bar body"><b style="width:${w(L.body_db)}%"></b></span><span class="bar name"><b style="width:${w(L.end_db)}%"></b></span></span>` +
+      `<span class="val">${signed(c.delta_db)} dB</span></div>`);
+  } else if (c.loud) {
+    rows.push(`<div class="rrow" aria-label="แยกเสียงพูดจากเสียงรอบข้างไม่ได้">${icon("meter")}<span class="bar"><b style="width:0"></b></span><span class="val">?</span></div>`);
+  }
+  if (c.error && c.error !== "aborted") rows.push(`<p class="fix">${icon("alert")}<span>${esc(FIX[c.error] || c.error)}</span></p>`);
+  if (c.meter_dead) rows.push(`<p class="fix">${icon("meter")}<span>${FIX.meter_dead}</span></p>`);
+  $("r-kv").innerHTML = rows.join("");
+  drawEnvelope(c);
+}
+
+function drawEnvelope(c) {
+  const cv = $("r-env"), g = cv.getContext("2d");
+  const cs = getComputedStyle(document.documentElement);
+  const col = (n) => cs.getPropertyValue(n).trim();
+  const W = cv.width, H = cv.height, f = c.frames;
+  g.clearRect(0, 0, W, H);
+  cv.hidden = !f.length;
+  if (!f.length) return;
+  const lo = Math.min(...f) - 2, hi = Math.max(lo + 20, Math.max(...f) + 2);
+  const x = (i) => (i / Math.max(1, f.length - 1)) * W, y = (db) => H - 8 - (db - lo) / (hi - lo) * (H - 16);
+  if (c.loud && c.loud.ok) {
+    g.globalAlpha = 0.3;
+    g.fillStyle = col("--sky"); g.fillRect(x(c.loud.body_from), 0, x(c.loud.split_at) - x(c.loud.body_from), H);
+    g.fillStyle = col("--peach"); g.fillRect(x(c.loud.split_at), 0, x(c.loud.last + 1) - x(c.loud.split_at), H);
+    g.globalAlpha = 1;
+    g.setLineDash([6, 6]); g.strokeStyle = col("--ink-soft"); g.lineWidth = 2;
+    g.beginPath(); g.moveTo(0, y(c.loud.floor_db)); g.lineTo(W, y(c.loud.floor_db)); g.stroke(); g.setLineDash([]);
+  }
+  g.strokeStyle = col("--ink"); g.lineWidth = 3; g.lineJoin = "round"; g.lineCap = "round";
+  g.beginPath(); f.forEach((db, i) => (i ? g.lineTo(x(i), y(db)) : g.moveTo(x(i), y(db)))); g.stroke();
+}
+
+function spellTags(sp) {
+  const t = sp.tier;
+  return `<span role="img" aria-label="${ROLE[sp.role]}" title="${ROLE[sp.role]}" style="display:inline-flex">${icon(ROLE_ICON[sp.role] || "wand")}</span>` +
+    `<span class="edot" role="img" aria-label="ธาตุ${ELEM[sp.element] || sp.element}" title="${ELEM[sp.element] || sp.element}" style="background:${ELEM_COLOR[sp.element] || "var(--line)"}"></span>` +
+    `<span class="tier" role="img" aria-label="${TIER[t]}" title="${TIER[t]}">${[0, 1, 2].map((i) => `<i class="${i <= t ? "on" : ""}"></i>`).join("")}</span>`;
+}
+
+function renderSpell() {
+  const plan = override || PLAN[step];
+  const sp = spellById[plan.spell];
+  const s = current();
+  $("step-label").textContent = override ? "เลือกเอง" : `${step + 1}/${PLAN.length}`;
+  const pl = s ? PLACES.find((p) => p.id === s.place) : null;
+  $("place-label").innerHTML = pl ? icon(pl.icon) : "";
+  $("place-label").setAttribute("aria-label", pl ? pl.th : "");
+  $("progress").innerHTML = PLAN.map((_, i) => `<i class="${i < step ? "done" : i === step && !override ? "now" : ""}${i === ORDER.length ? " gap" : ""}"></i>`).join("");
+  $("spell-tags").innerHTML = spellTags(sp);
+  $("spell-name").textContent = sp.name;
+  $("intent").innerHTML = intentArt(plan.intent) + `<span>${INTENT[plan.intent].th}</span>`;
+  $("intent").setAttribute("aria-label", INTENT[plan.intent].how);
+  $("karaoke").classList.toggle("emph", plan.intent === "emphasis");
+  $("karaoke").innerHTML = V.spokenLines(sp).map((l, i, a) => `<span class="line${i === a.length - 1 ? " name" : ""}">${esc(l)}</span>`).join("");
+  $("heard-live").textContent = "";
+}
+
+function render() {
+  const s = current();
+  const ready = !!s && !!SR;
+  $("setup").hidden = !!s;
+  $("hold").disabled = !ready || !!rec;
+  $("hold-hint").textContent = !SR ? "เบราว์เซอร์นี้ฟังเสียงไม่ได้" : !s ? "เลือกที่ แล้วกดเริ่ม" : rec ? "" : "กดค้างระหว่างพูด";
+  $("btn-end").hidden = !s;
+  $("btn-pick").hidden = !s;
+  $("places").innerHTML = PLACES.map((p) => `<button class="pick" aria-pressed="${p.id === place}" data-place="${p.id}">${icon(p.icon)}<span>${p.th}</span></button>`).join("");
+  const n = store.sessions.reduce((k, x) => k + x.casts.length, 0);
+  $("status").innerHTML =
+    `<span class="st ${SR ? "ok" : "bad"}" role="img" aria-label="ระบบฟังเสียง: ${SR ? "มี" : "ไม่มี"}" title="ระบบฟังเสียง">${icon("ear", "s")}</span>` +
+    `<span class="st ${mic ? "ok" : ""}" role="img" aria-label="ไมค์: ${mic ? "เปิดอยู่" : "ยังไม่เปิด"}" title="ไมค์">${icon("mic", "s")}</span>` +
+    `<span class="st" role="img" aria-label="เก็บแล้ว ${n} ครั้ง" title="เก็บแล้ว">${icon("jar", "s")}${n}</span>`;
+  renderSpell();
+  renderResults();
+}
+
+// ---------- summary ----------
+const median = (a) => { if (!a.length) return null; const s = a.slice().sort((x, y) => x - y); return s[Math.floor((s.length - 1) / 2)]; };
+const mean = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : null);
+function summarize(s) {
+  const cs = s.casts.filter((c) => c.error !== "tap");
+  const pass = cs.filter((c) => c.multiplier > 0).length;
+  const lat = cs.map((c) => c.latency_ms).filter((x) => x !== null && x !== undefined);
+  const dPlain = cs.filter((c) => c.intent === "plain" && c.delta_db !== null).map((c) => c.delta_db);
+  const dEmph = cs.filter((c) => c.intent === "emphasis" && c.delta_db !== null).map((c) => c.delta_db);
+  return { n: cs.length, pass: cs.length ? pass / cs.length : null, match: mean(cs.map((c) => c.match)),
+    latency: median(lat), dPlain: mean(dPlain), dEmph: mean(dEmph) };
+}
+function renderResults() {
+  const fmt = (x, f) => (x === null || x === undefined ? "–" : f(x));
+  const tile = (art, value, label) => `<div class="tile" role="img" aria-label="${label}" title="${label}">${art}<b>${value}</b></div>`;
+  const cards = store.sessions.map((s) => {
+    const m = summarize(s);
+    const pl = PLACES.find((p) => p.id === s.place) || { th: s.place, icon: "pin" };
+    const when = new Date(s.started_at).toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" });
+    const target = s.place === "street" ? TARGETS.pass_street : TARGETS.pass_quiet;
+    const face = (k) => (s.rating && s.rating[k] ? faceArt(k, s.rating[k]) : icon(k === "shy" ? "shy" : "fun"));
+    const tiles = [
+      tile(icon("wand"), m.n, `ร่าย ${m.n} ครั้ง`),
+      tile(icon("bubble"), fmt(m.match, pct), "ตรงเฉลี่ย " + fmt(m.match, pct)),
+      tile(icon("clock"), fmt(m.latency, (x) => (x / 1000).toFixed(1) + " วิ"), "รอผล มัธยฐาน " + fmt(m.latency, (x) => (x / 1000).toFixed(2) + " วินาที")),
+      tile(intentArt("plain", "mini"), fmt(m.dPlain, signed), "ชื่อท่าดังกว่าบท ตอนพูดปกติ " + fmt(m.dPlain, signed) + " dB"),
+      tile(intentArt("emphasis", "mini"), fmt(m.dEmph, signed), "ชื่อท่าดังกว่าบท ตอนเน้น " + fmt(m.dEmph, signed) + " dB"),
+      `<div class="tile" role="img" aria-label="อาย ${s.rating?.shy ?? "–"} สนุก ${s.rating?.fun ?? "–"} จาก 5">${face("shy")}${face("fun")}</div>`];
+    return `<div class="session"><div class="shead">${icon(pl.icon)}<span>${esc(pl.th)}</span>${s.rating ? "" : '<span class="live" role="img" aria-label="ยังไม่จบ"></span>'}<span class="when">${when}</span></div>
+      <div class="sbody">${gauge(m.pass, target)}<div class="tiles">${tiles.join("")}</div></div></div>`;
+  });
+  $("sum-list").innerHTML = cards.join("") || `<div class="card empty">${icon("chart")}<span class="small">ยังไม่มีผล</span></div>`;
+  const out = { ...store, device: deviceInfo(), build: DATA.build };
+  delete out.active;
+  $("export").value = JSON.stringify(out);
+}
+function deviceInfo() { return { ua: navigator.userAgent, recogniser: SR ? (window.SpeechRecognition ? "SpeechRecognition" : "webkitSpeechRecognition") : null, mic: mic ? mic.settings : null, lang: navigator.language }; }
+
+// ---------- events ----------
+$("places").addEventListener("click", (e) => { const b = e.target.closest("[data-place]"); if (b) { place = b.dataset.place; render(); } });
+$("btn-start").addEventListener("click", async () => {
+  const note = $("setup-note");
+  try {
+    if ($("opt-meter").checked && !mic) await openMic();
+  } catch (e) {
+    note.className = "consent bad";
+    note.title = String(e.name || e);
+    note.innerHTML = icon("alert", "s") + "<span>เปิดไมค์ไม่ได้: ใช้ Chrome หรือ Safari</span>";
+    return;
+  }
+  const s = { id: Date.now().toString(36), place, meter: !!mic, started_at: new Date().toISOString(), casts: [], rating: null };
+  store.sessions.push(s); store.active = s.id; saveStore();
+  step = 0; override = null;
+  render();
+});
+const hold = $("hold");
+hold.addEventListener("pointerdown", (e) => { if (hold.disabled) return; e.preventDefault(); try { hold.setPointerCapture(e.pointerId); } catch (_) {} startCast(); });
+["pointerup", "pointercancel"].forEach((t) => hold.addEventListener(t, () => releaseCast()));
+hold.addEventListener("contextmenu", (e) => e.preventDefault());
+document.addEventListener("keydown", (e) => { if (e.code === "Space" && !e.repeat && !hold.disabled && document.activeElement?.tagName !== "TEXTAREA") { e.preventDefault(); startCast(); } });
+document.addEventListener("keyup", (e) => { if (e.code === "Space") releaseCast(); });
+$("btn-retry").addEventListener("click", () => { $("result").hidden = true; });
+$("btn-next").addEventListener("click", () => {
+  $("result").hidden = true;
+  $("spell-card").scrollIntoView({ behavior: "smooth", block: "start" });
+  if (override) override = null;
+  else if (step < PLAN.length - 1) step += 1;
+  else { $("rate").hidden = false; $("rate").scrollIntoView({ behavior: "smooth" }); }
+  render();
+});
+$("btn-pick").addEventListener("click", () => { $("picker").hidden = !$("picker").hidden; });
+$("pick-spells").innerHTML = ORDER.map((s) => `<button class="pick pspell" data-spell="${s.id}" aria-label="${esc(s.name)} ${ROLE[s.role]} ${TIER[s.tier]}">${icon(ROLE_ICON[s.role] || "wand")}<span>${esc(s.name)}</span></button>`).join("");
+$("pick-intent").innerHTML = Object.entries(INTENT).map(([k, v]) => `<button class="pick pintent" data-intent="${k}" aria-pressed="${k === "plain"}" aria-label="${v.how}">${intentArt(k)}<span>${v.th}</span></button>`).join("");
+let pickIntent = "plain";
+$("pick-intent").addEventListener("click", (e) => { const b = e.target.closest("[data-intent]"); if (!b) return; pickIntent = b.dataset.intent; document.querySelectorAll("#pick-intent .pick").forEach((x) => x.setAttribute("aria-pressed", x === b)); if (override) { override.intent = pickIntent; render(); } });
+$("pick-spells").addEventListener("click", (e) => { const b = e.target.closest("[data-spell]"); if (!b) return; override = { spell: b.dataset.spell, intent: pickIntent }; $("picker").hidden = true; $("result").hidden = true; render(); });
+const scale = (id, key) => {
+  $(id).innerHTML = [1, 2, 3, 4, 5].map((n) => `<button class="pick" data-n="${n}" aria-pressed="false" aria-label="${n} ${RATE_WORDS[key][n - 1]}" title="${n}">${faceArt(key, n)}</button>`).join("");
+  $(id).addEventListener("click", (e) => { const b = e.target.closest("[data-n]"); if (!b) return; rating[key] = +b.dataset.n; $(id).querySelectorAll(".pick").forEach((x) => x.setAttribute("aria-pressed", x === b)); });
+};
+const rating = { shy: null, fun: null };
+scale("rate-shy", "shy"); scale("rate-fun", "fun");
+$("btn-end").addEventListener("click", () => { $("rate").hidden = false; $("rate").scrollIntoView({ behavior: "smooth" }); });
+$("btn-save-rate").addEventListener("click", () => {
+  const s = current(); if (!s) return;
+  s.rating = { shy: rating.shy, fun: rating.fun, note: $("rate-note").value.trim() };
+  s.ended_at = new Date().toISOString();
+  store.active = null; saveStore();
+  rating.shy = rating.fun = null; $("rate-note").value = "";
+  document.querySelectorAll("#rate .pick").forEach((x) => x.setAttribute("aria-pressed", "false"));
+  $("rate").hidden = true; $("result").hidden = true;
+  location.hash = "#results";
+  render();
+});
+$("btn-copy").addEventListener("click", () => {
+  const msg = $("copy-msg"), ta = $("export");
+  navigator.clipboard.writeText(ta.value).then(() => { msg.textContent = "คัดลอกแล้ว"; },
+    () => { $("export-box").open = true; ta.focus(); ta.select(); msg.textContent = "เลือกข้อความไว้แล้ว"; });
+});
+const fileName = () => "voice-test-" + new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-") + ".json";
+$("btn-download").addEventListener("click", () => {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([$("export").value], { type: "application/json" }));
+  a.download = fileName(); a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+});
+if (navigator.canShare && navigator.canShare({ files: [new File(["{}"], "x.json", { type: "application/json" })] })) {
+  $("btn-share").hidden = false;
+  $("btn-share").addEventListener("click", () => {
+    const f = new File([$("export").value], fileName(), { type: "application/json" });
+    navigator.share({ files: [f], title: "ผลทดสอบเสียง Say My Skill!" }).catch(() => {});
+  });
+}
+$("btn-clear").addEventListener("click", () => { $("clear-confirm").hidden = false; });
+$("btn-clear-no").addEventListener("click", () => { $("clear-confirm").hidden = true; });
+$("btn-clear-yes").addEventListener("click", () => { store = { format: store.format, sessions: [] }; saveStore(); $("clear-confirm").hidden = true; render(); });
+
+function route() {
+  const r = location.hash === "#results" ? "results" : "test";
+  $("view-test").hidden = r !== "test";
+  $("view-results").hidden = r !== "results";
+  $("nav-test").toggleAttribute("aria-current", r === "test");
+  $("nav-results").toggleAttribute("aria-current", r === "results");
+  if (r === "test") $("nav-test").setAttribute("aria-current", "page"); else $("nav-results").setAttribute("aria-current", "page");
+}
+window.addEventListener("hashchange", route);
+$("help-plain").innerHTML = intentArt("plain", "mini");
+$("help-emph").innerHTML = intentArt("emphasis", "mini");
+document.querySelectorAll(".help svg.mini").forEach((el) => { el.style.width = "34px"; el.style.height = "22px"; });
+$("build").textContent = "build " + DATA.build;
+// resume an unfinished round: continue after the last spell tried
+const s0 = current();
+if (s0) { place = s0.place; const last = s0.casts[s0.casts.length - 1]; if (last) { const i = PLAN.findIndex((p) => p.spell === last.spell && p.intent === last.intent); step = Math.min(PLAN.length - 1, i + 1); } }
+route();
+render();
+</script>
+</body>
+</html>
