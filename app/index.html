@@ -290,7 +290,7 @@ body { overflow: hidden; touch-action: none; -webkit-user-select: none; user-sel
     <svg viewBox="0 0 26 26" aria-hidden="true"><path d="M8 8 L18 18 M18 8 L8 18" stroke="#8a6a7c" stroke-width="2.6" stroke-linecap="round"/></svg>
   </button>
   <h1>Say My Skill! <span style="font-weight:400">เบต้าปิด / closed beta</span></h1>
-  <p class="build">build <span id="smk-build">a412d3d-20261101085827</span></p>
+  <p class="build">build <span id="smk-build">597ab7c-20261101100033</span></p>
   <section>
     <p>ข้อมูลแผนที่ © ผู้ร่วมสร้าง OpenStreetMap ใช้ตามสัญญาอนุญาต ODbL</p>
     <p class="en">Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>, available under the Open Database License (ODbL).</p>
@@ -315,7 +315,7 @@ body { overflow: hidden; touch-action: none; -webkit-user-select: none; user-sel
 
 <script src="index.js"></script>
 <script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":13082780,"index.wasm":39509339},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4,"serviceWorker":"index.service.worker.js"};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":13084188,"index.wasm":39509339},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4,"serviceWorker":"index.service.worker.js"};
 const GODOT_THREADS_ENABLED = false;
 const SMK_APP = {"beads": 10, "check_ms": 2500, "line_th": "กำลังเปิดสมุดเวท", "line_en": "Opening the spellbook"};
 const engine = new Engine(GODOT_CONFIG);
@@ -333,7 +333,7 @@ const engine = new Engine(GODOT_CONFIG);
   const beads = [];
   for (let i = 0; i < cfg.beads; i++) { const b = document.createElement('i'); beadBox.appendChild(b); beads.push(b); }
   // for tools/web_check_app.js: what the loading screen showed
-  const state = window.SMK_APP_STATE = { build: 'a412d3d-20261101085827', progress: [], started: false, reload: '' };
+  const state = window.SMK_APP_STATE = { build: '597ab7c-20261101100033', progress: [], started: false, reload: '' };
 
   function setBeads(share) {
     const n = Math.max(0, Math.min(beads.length, Math.floor(share * beads.length + 1e-6)));
