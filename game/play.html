@@ -1,6 +1,196 @@
 <!DOCTYPE html>
 <html lang="en">
 	<head>
+<script>window.__smkAudioInline = true;
+// Say My Skill! audio bridge for the Godot web build (sound-audio dept). Plain JS, no UI, no sound
+// of its own. Owner 1 Nov 2569 on iPhone Safari: "เหมือนเสียงจะไม่ออกนะ".
+//
+// tools/build_web.sh puts this file inline in <head>, BEFORE the engine's index.js, so it sees the
+// engine's AudioContext being made. BgmDirector also evals it at start (res://web/audio_bridge.js)
+// for pages made from an older shell; then the engine's context is not held here (Godot still
+// resumes its own on input), but the audio session part below still works.
+//
+// Nothing happens on load: no context is resumed, nothing plays. On every user gesture
+// (touchend / pointerup / click / keydown / mousedown, capture phase, before Godot sees it):
+//   1. navigator.audioSession.type = "playback" (Safari 16.4+): Web Audio then ignores the iPhone
+//      ringer / silent switch, like a music app. Older iOS: a tiny silent looped <audio> element
+//      is played once, which moves the page's session to playback the same way.
+//   2. every AudioContext the page made that is not running is resumed inside the gesture (iOS
+//      only lets a context start from touchend / click, and an app switch or a call leaves it
+//      "interrupted" until the next gesture).
+// A gesture is a gesture: a tap that arrives as touch AND as an emulated mouse just repeats
+// idempotent steps, nothing plays twice.
+//
+// The mic: while getUserMedia audio tracks are live or a SpeechRecognition runs, the session is
+// left to the browser ("auto" = play-and-record, which the mic needs); when the last one ends it
+// goes back to "playback" so the sound returns to the speaker at full volume.
+//
+//   SMKAudio.configure(json)  {session_type, ios_silent_loop, silent_loop_sec} from data/bgm.json web
+//   SMKAudio.status()         JSON {contexts:[state], gestures, session, silent_element, capturing}
+(function () {
+  "use strict";
+  if (window.SMKAudio) return;
+
+  var cfg = { session_type: "playback", ios_silent_loop: true, silent_loop_sec: 0.5 };
+  var ctxs = [];
+  var gestures = 0;
+  var silentEl = null;
+  var liveTracks = 0;
+  var recognizing = 0;
+
+  // ------------------------------------------------------------ contexts ----
+  var Orig = window.AudioContext || window.webkitAudioContext;
+  if (Orig) {
+    var Held = function (opts) {
+      var c = opts === undefined ? new Orig() : new Orig(opts);
+      ctxs.push(c);
+      return c;
+    };
+    Held.prototype = Orig.prototype;
+    try { Object.setPrototypeOf(Held, Orig); } catch (e) {}
+    if (window.AudioContext) window.AudioContext = Held;
+    if (window.webkitAudioContext) window.webkitAudioContext = Held;
+  }
+
+  function resumeAll() {
+    // closed contexts (e.g. the mic loudness probe) are dropped so they can be freed
+    ctxs = ctxs.filter(function (c) { return c.state !== "closed"; });
+    for (var i = 0; i < ctxs.length; i++) {
+      var c = ctxs[i];
+      if (c.state !== "running" && c.state !== "closed" && c.resume) {
+        try { var p = c.resume(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+      }
+    }
+  }
+
+  // ------------------------------------------------------------- session ----
+  function session() { return navigator.audioSession || null; }
+  function setSession(type) {
+    var s = session();
+    if (!s) return;
+    try { if (s.type !== type) s.type = type; } catch (e) {}
+  }
+  function capturing() { return liveTracks > 0 || recognizing > 0; }
+  function settle() { if (!capturing()) setSession(cfg.session_type); }
+
+  function isIOS() {
+    var ua = navigator.userAgent || "";
+    return /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  }
+
+  // a silent mono 8 kHz WAV, made here (no file to ship)
+  function silentWav(sec) {
+    var n = Math.max(1, Math.round(8000 * sec));
+    var b = new Uint8Array(44 + n);
+    var v = new DataView(b.buffer);
+    function str(o, s) { for (var i = 0; i < s.length; i++) b[o + i] = s.charCodeAt(i); }
+    str(0, "RIFF"); v.setUint32(4, 36 + n, true); str(8, "WAVE"); str(12, "fmt ");
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, 8000, true); v.setUint32(28, 8000, true); v.setUint16(32, 1, true);
+    v.setUint16(34, 8, true); str(36, "data"); v.setUint32(40, n, true);
+    for (var i = 0; i < n; i++) b[44 + i] = 128;   // 8-bit unsigned silence
+    var s = "";
+    for (var j = 0; j < b.length; j++) s += String.fromCharCode(b[j]);
+    return "data:audio/wav;base64," + btoa(s);
+  }
+
+  function playSilentLoop() {
+    if (session() || !cfg.ios_silent_loop || !isIOS()) return;
+    try {
+      if (!silentEl) {
+        silentEl = document.createElement("audio");
+        silentEl.setAttribute("x-webkit-airplay", "deny");
+        silentEl.setAttribute("playsinline", "");
+        silentEl.preload = "auto";
+        silentEl.loop = true;
+        silentEl.src = silentWav(cfg.silent_loop_sec);
+      }
+      if (silentEl.paused && !document.hidden) {
+        var p = silentEl.play();
+        if (p && p.catch) p.catch(function () {});
+      }
+    } catch (e) {}
+  }
+
+  function onGesture() {
+    gestures++;
+    settle();
+    playSilentLoop();
+    resumeAll();
+  }
+  ["touchend", "pointerup", "click", "keydown", "mousedown"].forEach(function (type) {
+    window.addEventListener(type, onGesture, { capture: true, passive: true });
+  });
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) {
+      if (silentEl && !silentEl.paused) { try { silentEl.pause(); } catch (e) {} }
+    } else if (gestures > 0) {
+      resumeAll();   // may be refused outside a gesture; the next tap tries again
+    }
+  });
+
+  // ----------------------------------------------------------------- mic ----
+  var md = navigator.mediaDevices;
+  if (md && md.getUserMedia) {
+    var gum = md.getUserMedia.bind(md);
+    md.getUserMedia = function (c) {
+      var wantsAudio = !!(c && c.audio);
+      if (wantsAudio) setSession("auto");   // the browser picks play-and-record for the mic
+      return gum(c).then(function (stream) {
+        stream.getAudioTracks().forEach(function (t) {
+          liveTracks++;
+          var done = false;
+          var end = function () { if (done) return; done = true; liveTracks--; settle(); };
+          var stop = t.stop;
+          t.stop = function () { var r = stop.apply(t, arguments); end(); return r; };
+          t.addEventListener("ended", end);
+        });
+        return stream;
+      }, function (e) { settle(); throw e; });
+    };
+  }
+  [window.SpeechRecognition, window.webkitSpeechRecognition].forEach(function (R) {
+    if (!R || !R.prototype || R.prototype.__smkAudio) return;
+    var start = R.prototype.start;
+    R.prototype.__smkAudio = true;
+    R.prototype.start = function () {
+      var rec = this;
+      if (!rec.__smkRunning) {
+        rec.__smkRunning = true;
+        recognizing++;
+        setSession("auto");
+        rec.addEventListener("end", function once() {
+          rec.removeEventListener("end", once);
+          if (rec.__smkRunning) { rec.__smkRunning = false; recognizing--; settle(); }
+        });
+      }
+      try {
+        return start.apply(rec, arguments);
+      } catch (e) {
+        if (rec.__smkRunning) { rec.__smkRunning = false; recognizing--; settle(); }
+        throw e;
+      }
+    };
+  });
+
+  window.SMKAudio = {
+    configure: function (json) {
+      try {
+        var c = typeof json === "string" ? JSON.parse(json) : json;
+        for (var k in c) if (Object.prototype.hasOwnProperty.call(cfg, k)) cfg[k] = c[k];
+      } catch (e) {}
+      return true;
+    },
+    status: function () {
+      var s = session();
+      return JSON.stringify({ contexts: ctxs.map(function (c) { return c.state; }), gestures: gestures,
+        session: s ? s.type : "", silent_element: !!silentEl, capturing: capturing(),
+        inline: !!window.__smkAudioInline });
+    }
+  };
+})();
+</script>
+
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0">
 		<title>Say My Skill!</title>
@@ -111,7 +301,7 @@ body {
 
 		<script src="index.js"></script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"play.pck":12908312,"index.wasm":39509339},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"play.pck"};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"play.pck":13041096,"index.wasm":39509339},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"play.pck"};
 const GODOT_THREADS_ENABLED = false;
 const engine = new Engine(GODOT_CONFIG);
 
