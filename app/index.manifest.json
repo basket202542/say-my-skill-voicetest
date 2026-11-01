@@ -1,0 +1,52 @@
+{
+ "background_color": "#fff6e8",
+ "display": "standalone",
+ "icons": [
+  {
+   "sizes": "144x144",
+   "src": "index.144x144.png",
+   "type": "image/png",
+   "purpose": "any"
+  },
+  {
+   "sizes": "180x180",
+   "src": "index.180x180.png",
+   "type": "image/png",
+   "purpose": "any"
+  },
+  {
+   "sizes": "512x512",
+   "src": "index.512x512.png",
+   "type": "image/png",
+   "purpose": "any"
+  },
+  {
+   "src": "app.icon.192.png",
+   "sizes": "192x192",
+   "type": "image/png",
+   "purpose": "any"
+  },
+  {
+   "src": "app.maskable.192.png",
+   "sizes": "192x192",
+   "type": "image/png",
+   "purpose": "maskable"
+  },
+  {
+   "src": "app.maskable.512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "maskable"
+  }
+ ],
+ "name": "Say My Skill!",
+ "orientation": "portrait",
+ "start_url": "./index.html",
+ "short_name": "Say My Skill!",
+ "description": "เกมเวทมนตร์ร่ายด้วยเสียง / A cozy spell-casting game you play with your voice",
+ "lang": "th",
+ "id": "say-my-skill-beta",
+ "scope": "./",
+ "theme_color": "#fff6e8",
+ "prefer_related_applications": false
+}

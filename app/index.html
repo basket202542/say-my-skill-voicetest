@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<script>window.__smkAudioInline = true;
+// Say My Skill! audio bridge for the Godot web build (sound-audio dept). Plain JS, no UI, no sound
+// of its own. Owner 1 Nov 2569 on iPhone Safari: "เหมือนเสียงจะไม่ออกนะ".
+//
+// tools/build_web.sh puts this file inline in <head>, BEFORE the engine's index.js, so it sees the
+// engine's AudioContext being made. BgmDirector also evals it at start (res://web/audio_bridge.js)
+// for pages made from an older shell; then the engine's context is not held here (Godot still
+// resumes its own on input), but the audio session part below still works.
+//
+// Nothing happens on load: no context is resumed, nothing plays. On every user gesture
+// (touchend / pointerup / click / keydown / mousedown, capture phase, before Godot sees it):
+//   1. navigator.audioSession.type = "playback" (Safari 16.4+): Web Audio then ignores the iPhone
+//      ringer / silent switch, like a music app. Older iOS: a tiny silent looped <audio> element
+//      is played once, which moves the page's session to playback the same way.
+//   2. every AudioContext the page made that is not running is resumed inside the gesture (iOS
+//      only lets a context start from touchend / click, and an app switch or a call leaves it
+//      "interrupted" until the next gesture).
+// A gesture is a gesture: a tap that arrives as touch AND as an emulated mouse just repeats
+// idempotent steps, nothing plays twice.
+//
+// The mic: while getUserMedia audio tracks are live or a SpeechRecognition runs, the session is
+// left to the browser ("auto" = play-and-record, which the mic needs); when the last one ends it
+// goes back to "playback" so the sound returns to the speaker at full volume.
+//
+//   SMKAudio.configure(json)  {session_type, ios_silent_loop, silent_loop_sec} from data/bgm.json web
+//   SMKAudio.status()         JSON {contexts:[state], gestures, session, silent_element, capturing}
+(function () {
+  "use strict";
+  if (window.SMKAudio) return;
+
+  var cfg = { session_type: "playback", ios_silent_loop: true, silent_loop_sec: 0.5 };
+  var ctxs = [];
+  var gestures = 0;
+  var silentEl = null;
+  var liveTracks = 0;
+  var pendingMics = 0;   // getUserMedia calls still waiting for the stream count as capturing
+  var recognizing = 0;
+
+  // ------------------------------------------------------------ contexts ----
+  var Orig = window.AudioContext || window.webkitAudioContext;
+  if (Orig) {
+    var Held = function (opts) {
+      var c = opts === undefined ? new Orig() : new Orig(opts);
+      ctxs.push(c);
+      return c;
+    };
+    Held.prototype = Orig.prototype;
+    try { Object.setPrototypeOf(Held, Orig); } catch (e) {}
+    if (window.AudioContext) window.AudioContext = Held;
+    if (window.webkitAudioContext) window.webkitAudioContext = Held;
+  }
+
+  function resumeAll() {
+    // closed contexts (e.g. the mic loudness probe) are dropped so they can be freed
+    ctxs = ctxs.filter(function (c) { return c.state !== "closed"; });
+    for (var i = 0; i < ctxs.length; i++) {
+      var c = ctxs[i];
+      if (c.state !== "running" && c.state !== "closed" && c.resume) {
+        try { var p = c.resume(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+      }
+    }
+  }
+
+  // ------------------------------------------------------------- session ----
+  function session() { return navigator.audioSession || null; }
+  function setSession(type) {
+    var s = session();
+    if (!s) return;
+    try { if (s.type !== type) s.type = type; } catch (e) {}
+  }
+  function capturing() { return liveTracks > 0 || recognizing > 0 || pendingMics > 0; }
+  function settle() { if (!capturing()) setSession(cfg.session_type); }
+
+  function isIOS() {
+    var ua = navigator.userAgent || "";
+    return /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  }
+
+  // a silent mono 8 kHz WAV, made here (no file to ship)
+  function silentWav(sec) {
+    var n = Math.max(1, Math.round(8000 * sec));
+    var b = new Uint8Array(44 + n);
+    var v = new DataView(b.buffer);
+    function str(o, s) { for (var i = 0; i < s.length; i++) b[o + i] = s.charCodeAt(i); }
+    str(0, "RIFF"); v.setUint32(4, 36 + n, true); str(8, "WAVE"); str(12, "fmt ");
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, 8000, true); v.setUint32(28, 8000, true); v.setUint16(32, 1, true);
+    v.setUint16(34, 8, true); str(36, "data"); v.setUint32(40, n, true);
+    for (var i = 0; i < n; i++) b[44 + i] = 128;   // 8-bit unsigned silence
+    var s = "";
+    for (var j = 0; j < b.length; j++) s += String.fromCharCode(b[j]);
+    return "data:audio/wav;base64," + btoa(s);
+  }
+
+  function playSilentLoop() {
+    if (session() || !cfg.ios_silent_loop || !isIOS()) return;
+    try {
+      if (!silentEl) {
+        silentEl = document.createElement("audio");
+        silentEl.setAttribute("x-webkit-airplay", "deny");
+        silentEl.setAttribute("playsinline", "");
+        silentEl.preload = "auto";
+        silentEl.loop = true;
+        silentEl.src = silentWav(cfg.silent_loop_sec);
+      }
+      if (silentEl.paused && !document.hidden) {
+        var p = silentEl.play();
+        if (p && p.catch) p.catch(function () {});
+      }
+    } catch (e) {}
+  }
+
+  function onGesture() {
+    gestures++;
+    settle();
+    playSilentLoop();
+    resumeAll();
+  }
+  ["touchend", "pointerup", "click", "keydown", "mousedown"].forEach(function (type) {
+    window.addEventListener(type, onGesture, { capture: true, passive: true });
+  });
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) {
+      if (silentEl && !silentEl.paused) { try { silentEl.pause(); } catch (e) {} }
+    } else if (gestures > 0) {
+      resumeAll();   // may be refused outside a gesture; the next tap tries again
+    }
+  });
+
+  // ----------------------------------------------------------------- mic ----
+  var md = navigator.mediaDevices;
+  if (md && md.getUserMedia) {
+    var gum = md.getUserMedia.bind(md);
+    md.getUserMedia = function (c) {
+      var wantsAudio = !!(c && c.audio);
+      if (wantsAudio) { setSession("auto"); pendingMics++; }   // the browser picks play-and-record for the mic
+      var settled = false;
+      var unpend = function () { if (wantsAudio && !settled) { settled = true; pendingMics--; } };
+      return gum(c).then(function (stream) {
+        unpend();
+        stream.getAudioTracks().forEach(function (t) {
+          liveTracks++;
+          var done = false;
+          var end = function () { if (done) return; done = true; liveTracks--; settle(); };
+          var stop = t.stop;
+          t.stop = function () { var r = stop.apply(t, arguments); end(); return r; };
+          t.addEventListener("ended", end);
+        });
+        if (capturing()) setSession("auto");   // a tap's settle() may have run while the stream was pending
+        return stream;
+      }, function (e) { unpend(); settle(); throw e; });
+    };
+  }
+  [window.SpeechRecognition, window.webkitSpeechRecognition].forEach(function (R) {
+    if (!R || !R.prototype || R.prototype.__smkAudio) return;
+    var start = R.prototype.start;
+    R.prototype.__smkAudio = true;
+    R.prototype.start = function () {
+      var rec = this;
+      if (!rec.__smkRunning) {
+        rec.__smkRunning = true;
+        recognizing++;
+        setSession("auto");
+        rec.addEventListener("end", function once() {
+          rec.removeEventListener("end", once);
+          if (rec.__smkRunning) { rec.__smkRunning = false; recognizing--; settle(); }
+        });
+      }
+      try {
+        return start.apply(rec, arguments);
+      } catch (e) {
+        if (rec.__smkRunning) { rec.__smkRunning = false; recognizing--; settle(); }
+        throw e;
+      }
+    };
+  });
+
+  window.SMKAudio = {
+    configure: function (json) {
+      try {
+        var c = typeof json === "string" ? JSON.parse(json) : json;
+        for (var k in c) if (Object.prototype.hasOwnProperty.call(cfg, k)) cfg[k] = c[k];
+      } catch (e) {}
+      return true;
+    },
+    status: function () {
+      var s = session();
+      return JSON.stringify({ contexts: ctxs.map(function (c) { return c.state; }), gestures: gestures,
+        session: s ? s.type : "", silent_element: !!silentEl, capturing: capturing(),
+        inline: !!window.__smkAudioInline });
+    }
+  };
+})();
+</script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Say My Skill!</title>
+<!-- Say My Skill! home-screen app shell (web export preset "WebApp", tools/build_web.sh --app).
+     Voice & Casting dept. The build fills the __SMK_*__ marks from data/web_app.json. -->
+<meta name="description" content="เกมเวทมนตร์ร่ายด้วยเสียง / A cozy spell-casting game you play with your voice">
+<meta name="theme-color" content="#fff6e8">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Say My Skill!">
+<link rel="icon" type="image/png" href="app.favicon.png">
+<link rel="apple-touch-icon" href="index.180x180.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="app.startup.750x1334.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="app.startup.828x1792.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="app.startup.1125x2436.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="app.startup.1170x2532.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="app.startup.1179x2556.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="app.startup.1242x2688.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="app.startup.1284x2778.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="app.startup.1290x2796.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="app.startup.1206x2622.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="app.startup.1320x2868.png">
+<style>
+html, body, #canvas { margin: 0; padding: 0; border: 0; }
+html, body { background: #fff6e8; height: 100%; }
+body { overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none;
+  -webkit-tap-highlight-color: transparent; }
+#canvas { display: block; }
+#canvas:focus { outline: none; }
+[hidden] { display: none !important; }
+
+#smk-load { position: fixed; inset: 0; background: #fff6e8; display: flex;
+  flex-direction: column; align-items: center; justify-content: center; z-index: 5;
+  transition: opacity 0.35s ease; font-family: system-ui, -apple-system, "Noto Sans Thai", sans-serif; }
+#smk-load.done { opacity: 0; pointer-events: none; }
+#smk-book { width: 220px; height: 220px; margin-top: -8vh;
+  animation: smk-float 3.2s ease-in-out infinite; }
+@keyframes smk-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+#smk-beads { display: flex; gap: 9px; margin-top: 18px; }
+#smk-beads i { width: 14px; height: 14px; border-radius: 50%; background: #e8dcf6;
+  box-shadow: inset 0 -2px 0 rgba(122, 95, 110, 0.12); transition: background 0.25s, transform 0.25s; }
+#smk-beads i.on { background: radial-gradient(circle at 35% 30%, #ffffff 0 18%, #9d86e0 45%);
+  transform: scale(1.12); }
+#smk-beads.wait i { animation: smk-wait 1.4s ease-in-out infinite; }
+@keyframes smk-wait { 0%, 100% { background: #e8dcf6; } 50% { background: #9d86e0; } }
+#smk-line { margin: 16px 0 0; color: #7a5f6e; font-size: 15px; letter-spacing: 0.02em; opacity: 0.85; }
+#smk-notice { margin: 18px 28px 0; padding: 12px 16px; border-radius: 18px; background: #fbe3e0;
+  color: #7a4a52; font-size: 14px; line-height: 1.45; text-align: center; white-space: pre-line; }
+
+.smk-round { position: fixed; width: 44px; height: 44px; border-radius: 50%; border: 0; padding: 0;
+  background: #ffffffcc; box-shadow: 0 2px 6px rgba(122, 95, 110, 0.18); cursor: pointer; }
+.smk-round svg { width: 26px; height: 26px; display: block; margin: auto; }
+#smk-about-btn { right: max(16px, env(safe-area-inset-right)); bottom: max(18px, env(safe-area-inset-bottom)); z-index: 6; }
+
+#smk-about { position: fixed; left: 0; right: 0; bottom: 0; max-height: 78vh; overflow: auto; z-index: 8;
+  background: #fffaf1; border-radius: 26px 26px 0 0; box-shadow: 0 -4px 18px rgba(122, 95, 110, 0.22);
+  padding: 22px 22px max(22px, env(safe-area-inset-bottom)); color: #7a5f6e;
+  font-family: system-ui, -apple-system, "Noto Sans Thai", sans-serif; font-size: 13.5px; line-height: 1.5;
+  touch-action: pan-y; -webkit-user-select: text; user-select: text; }
+#smk-about h1 { font-size: 17px; margin: 0 52px 2px 0; }
+#smk-about .build { font-size: 11.5px; opacity: 0.6; margin: 0 0 10px; }
+#smk-about section { padding: 9px 0; border-top: 1px dashed #e7d7c6; }
+#smk-about p { margin: 0; }
+#smk-about .en { opacity: 0.72; }
+#smk-about a { color: #8a6fc9; }
+#smk-about-close { position: absolute; right: 14px; top: 14px; }
+</style>
+<link rel="manifest" href="index.manifest.json">
+
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<noscript>Say My Skill! ต้องเปิด JavaScript / needs JavaScript.</noscript>
+
+<div id="smk-load">
+  <img id="smk-book" src="app.book.png" alt="">
+  <div id="smk-beads" class="wait"></div>
+  <p id="smk-line"></p>
+  <div id="smk-notice" hidden></div>
+</div>
+
+<button id="smk-about-btn" class="smk-round" type="button" aria-label="เกี่ยวกับเกม / About">
+  <!-- a tiny rolled scroll: credits live in it -->
+  <svg viewBox="0 0 26 26" aria-hidden="true"><rect x="5" y="5" width="16" height="16" rx="4" fill="#fff6e8" stroke="#8a6a7c" stroke-width="1.6"/>
+  <circle cx="5.5" cy="8" r="3" fill="#d9ccf6" stroke="#8a6a7c" stroke-width="1.4"/><circle cx="20.5" cy="18" r="3" fill="#d9ccf6" stroke="#8a6a7c" stroke-width="1.4"/>
+  <rect x="9" y="10" width="8" height="2" rx="1" fill="#b9a3df"/><rect x="9" y="14" width="6" height="2" rx="1" fill="#b9a3df"/></svg>
+</button>
+
+<div id="smk-about" hidden role="dialog" aria-label="เกี่ยวกับเกม / About">
+  <button id="smk-about-close" class="smk-round" type="button" aria-label="ปิด / Close">
+    <svg viewBox="0 0 26 26" aria-hidden="true"><path d="M8 8 L18 18 M18 8 L8 18" stroke="#8a6a7c" stroke-width="2.6" stroke-linecap="round"/></svg>
+  </button>
+  <h1>Say My Skill! <span style="font-weight:400">เบต้าปิด / closed beta</span></h1>
+  <p class="build">build <span id="smk-build">a412d3d-20261101085827</span></p>
+  <section>
+    <p>ข้อมูลแผนที่ © ผู้ร่วมสร้าง OpenStreetMap ใช้ตามสัญญาอนุญาต ODbL</p>
+    <p class="en">Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>, available under the Open Database License (ODbL).</p>
+  </section>
+  <section>
+    <p>ข้อมูลความสูงพื้นที่ SRTM ได้รับความอนุเคราะห์จาก U.S. Geological Survey</p>
+    <p class="en">SRTM terrain data courtesy of the U.S. Geological Survey.</p>
+  </section>
+  <section>
+    <p>ฟอนต์ Noto Sans Thai © The Noto Project Authors ใช้ตาม SIL Open Font License 1.1</p>
+    <p class="en">Noto Sans Thai font © The Noto Project Authors, licensed under the <a href="https://openfontlicense.org" target="_blank" rel="noopener">SIL Open Font License 1.1</a>.</p>
+  </section>
+  <section>
+    <p>สร้างด้วย Godot Engine (สัญญาอนุญาต MIT) และส่วนประกอบของ Godot เช่น FreeType</p>
+    <p class="en">Made with <a href="https://godotengine.org/license" target="_blank" rel="noopener">Godot Engine</a> (MIT license, © Godot Engine contributors); portions © The FreeType Project and other third-party components listed there.</p>
+  </section>
+  <section>
+    <p>เสียงพูดตอนร่ายเวทถูกส่งให้ตัวฟังเสียงของเบราว์เซอร์ (Google หรือ Apple) ตำแหน่ง GPS อยู่ในเครื่องเท่านั้น</p>
+    <p class="en">Your spoken spells go to the browser's speech recogniser (Google or Apple). Your GPS position stays on this phone.</p>
+  </section>
+</div>
+
+<script src="index.js"></script>
+<script>
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":13082780,"index.wasm":39509339},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4,"serviceWorker":"index.service.worker.js"};
+const GODOT_THREADS_ENABLED = false;
+const SMK_APP = {"beads": 10, "check_ms": 2500, "line_th": "กำลังเปิดสมุดเวท", "line_en": "Opening the spellbook"};
+const engine = new Engine(GODOT_CONFIG);
+
+(function () {
+  'use strict';
+  const cfg = SMK_APP || { beads: 10, check_ms: 2500, line_th: '', line_en: '' };
+  const load = document.getElementById('smk-load');
+  const beadBox = document.getElementById('smk-beads');
+  const notice = document.getElementById('smk-notice');
+  const about = document.getElementById('smk-about');
+  const aboutBtn = document.getElementById('smk-about-btn');
+  const thai = !/^en/i.test(navigator.language || 'th');   // Thai unless the phone is in English
+  document.getElementById('smk-line').textContent = thai ? cfg.line_th : cfg.line_en;
+  const beads = [];
+  for (let i = 0; i < cfg.beads; i++) { const b = document.createElement('i'); beadBox.appendChild(b); beads.push(b); }
+  // for tools/web_check_app.js: what the loading screen showed
+  const state = window.SMK_APP_STATE = { build: 'a412d3d-20261101085827', progress: [], started: false, reload: '' };
+
+  function setBeads(share) {
+    const n = Math.max(0, Math.min(beads.length, Math.floor(share * beads.length + 1e-6)));
+    beadBox.classList.remove('wait');
+    beads.forEach((b, i) => b.classList.toggle('on', i < n));
+  }
+
+  function showAbout(open) {
+    about.hidden = !open;
+    if (open) { about.scrollTop = 0; }
+  }
+  aboutBtn.addEventListener('click', (e) => { e.stopPropagation(); showAbout(true); });
+  document.getElementById('smk-about-close').addEventListener('click', (e) => { e.stopPropagation(); showAbout(false); });
+  if (location.hash === '#about') { showAbout(true); }
+  window.addEventListener('hashchange', () => showAbout(location.hash === '#about'));
+
+  function fail(err) {
+    console.error(err);
+    const msg = (err instanceof Error) ? err.message : (typeof err === 'string' ? err : 'unknown error');
+    notice.textContent = 'เปิดเกมไม่ได้ / The game could not start\n' + msg;
+    notice.hidden = false;
+    beadBox.hidden = true;
+  }
+
+  // ---- updates: a new deploy never leaves a tester on the old build ----
+  // The service worker (Godot's, patched by build_web.sh: versioned cache name, whole build cached at
+  // install, old caches dropped on activate) installs a new build in the background. If it is ready
+  // before the game starts, the page reloads into it now; once the game runs it takes over quietly
+  // and the next open is the new build (no reload in the middle of a fight).
+  const sw = ('serviceWorker' in navigator) ? navigator.serviceWorker : null;
+  let reloading = false;
+  function onInstalled(worker) {
+    if (!sw.controller) { return; }       // first install: nothing old to replace
+    if (!state.started) {
+      reloading = true;
+      state.reload = 'update';
+      console.log('SMK_APP update ready: reload into the new build');
+      worker.postMessage('update');
+    } else {
+      console.log('SMK_APP update ready: next open');
+      worker.postMessage('claim');
+    }
+  }
+  function watch(reg) {
+    if (reg.waiting) { onInstalled(reg.waiting); }
+    reg.addEventListener('updatefound', () => {
+      const w = reg.installing;
+      if (!w) { return; }
+      w.addEventListener('statechange', () => { if (w.state === 'installed') { onInstalled(w); } });
+    });
+  }
+  function preflight() {
+    if (!sw || !sw.controller) { return Promise.resolve(); }
+    const wait = new Promise((resolve) => setTimeout(resolve, cfg.check_ms));
+    const check = sw.getRegistration().then((reg) => {
+      if (!reg) { return null; }
+      watch(reg);
+      return reg.update().catch(() => null).then(() => new Promise((resolve) => {
+        const w = reg.installing;
+        if (!w) { resolve(); return; }
+        w.addEventListener('statechange', () => { if (w.state !== 'installing') { resolve(); } });
+      }));
+    }).catch(() => null);
+    return Promise.race([check, wait]);
+  }
+  if (sw) {
+    sw.addEventListener('controllerchange', () => { console.log('SMK_APP controller changed'); });
+  }
+
+  function start() {
+    if (reloading) {
+      // the worker navigates this page; if that does not happen, start the old build anyway
+      setTimeout(() => { if (!state.started) { reloading = false; start(); } }, 6000);
+      return;
+    }
+    const missing = Engine.getMissingFeatures({ threads: GODOT_THREADS_ENABLED });
+    if (missing.length !== 0) {
+      fail('ขาด / missing: ' + missing.join(', '));
+      return;
+    }
+    engine.startGame({
+      'onProgress': function (current, total) {
+        if (current > 0 && total > 0) {
+          setBeads(current / total);
+          state.progress.push(Math.round(100 * current / total));
+        }
+      },
+    }).then(() => {
+      state.started = true;
+      setBeads(1);
+      console.log('SMK_APP started build=' + state.build + ' controlled=' + !!(sw && sw.controller));
+      if (sw) { sw.getRegistration().then((reg) => { if (reg) { watch(reg); } }).catch(() => {}); }
+      setTimeout(() => {
+        load.classList.add('done');
+        aboutBtn.hidden = true;               // the game owns the screen from here
+        setTimeout(() => load.remove(), 400);
+      }, 250);
+    }, fail);
+  }
+  preflight().then(start, start);
+}());
+</script>
+</body>
+</html>
+
